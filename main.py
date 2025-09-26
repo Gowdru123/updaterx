@@ -43,7 +43,7 @@ QUALITY_PATTERN = re.compile(
     re.IGNORECASE
 )
 YEAR_PATTERN = re.compile(r"(?<![A-Za-z0-9])(?:19|20)\d{2}(?![A-Za-z0-9])")
-RANGE_REGEX = re.compile(r'\bS(\d{1,2})[^\w\n\r]*E(?:p(?:isode)?)?0*(\d{1,2})\s*(?:to|-)\s*(?:E(?:p(?:isode)?)?)?0*(\d{1,2})',re.IGNORECASE)
+RANGE_REGEX = re.compile(r'\bS(\d{1,2})[^\w\n\r]*E(?:p(?:isode)?)?0*(\d{1,2})_to_0*(\d{1,2})',re.IGNORECASE)
 SINGLE_REGEX = re.compile(r'\bS(\d{1,2})[^\w\n\r]*E(?:p(?:isode)?)?0*(\d{1,3})', re.IGNORECASE)
 NAMED_REGEX = re.compile(r'Season\s*0*(\d{1,2})[\s\-,:]*Ep(?:isode)?\s*0*(\d{1,3})', re.IGNORECASE)
 EP_ONLY_RANGE = re.compile(r'\b(?:EP|Episode)0*(\d{1,3})\s*-\s*0*(\d{1,3})\b',re.IGNORECASE)
@@ -831,9 +831,7 @@ async def update_movie_post(movie_name):
                         'message_id': processor.movie_data[movie_name]['message_id'],
                         'is_photo': processor.movie_data[movie_name]['is_photo'],
                         'tag': processor.movie_data[movie_name]['tag'],
-                        'episodes_by_season': {k: list(v) for k, v in processor.movie_data[movie_name]['episodes_by_season'].items()},
-                        'poster_fetched': processor.movie_data[movie_name].get('poster_fetched', False),
-                        'trailer_url': processor.movie_data[movie_name].get('trailer_url', '')
+                        'episodes_by_season': {k: list(v) for k, v in processor.movie_data[movie_name]['episodes_by_season'].items()}
                     }
                     db[f"movie_{movie_name}"] = movie_data_for_db
                 except Exception as e:
@@ -855,24 +853,21 @@ async def update_movie_post(movie_name):
                                 year = file_data['year']
                                 break
 
-                    logger.info(f"🎬 Searching for trailer: '{movie_name}' (year: {year})")
-                    
-                    # Search for trailer
-                    trailer_info = await youtube_fetcher.search_movie_trailer(movie_name, year)
+                    # Construct a clean query for Google Images
+                    clean_movie_name = movie_name.replace(' ', '+')
+                    search_query = f"{clean_movie_name}+{year}+poster" if year else f"{clean_movie_name}+poster"
+                    logger.logger.info(f"🔍 Google Images search query: {search_query}")
 
-                    if trailer_info and 'id' in trailer_info:
-                        # Get thumbnail
-                        thumbnail_data = await youtube_fetcher.get_video_thumbnail(trailer_info['id'])
+                    # Use the new poster search method
+                    poster_data = await youtube_fetcher.search_google_images_poster(search_query)
 
-                        if thumbnail_data:
-                            # Process thumbnail
-                            poster_data = await youtube_fetcher.process_thumbnail(thumbnail_data)
+                    if poster_data:
+                        logger.info(f"✅ Successfully fetched poster for: {movie_name}")
+                        # Mark as poster fetched to avoid refetching
+                        processor.movie_data[movie_name]['poster_fetched'] = True
+                    else:
+                        logger.warning(f"⚠️ Could not fetch poster for: {movie_name}")
 
-                            if poster_data:
-                                logger.info(f"✅ Successfully fetched poster for: {movie_name}")
-                                # Mark as poster fetched to avoid refetching
-                                processor.movie_data[movie_name]['poster_fetched'] = True
-                                processor.movie_data[movie_name]['trailer_url'] = f"https://youtube.com/watch?v={trailer_info['id']}"
 
                 # Send message with or without poster
                 if poster_data:
@@ -908,8 +903,7 @@ async def update_movie_post(movie_name):
                         'is_photo': processor.movie_data[movie_name]['is_photo'],
                         'tag': processor.movie_data[movie_name]['tag'],
                         'episodes_by_season': {k: list(v) for k, v in processor.movie_data[movie_name]['episodes_by_season'].items()},
-                        'poster_fetched': processor.movie_data[movie_name].get('poster_fetched', False),
-                        'trailer_url': processor.movie_data[movie_name].get('trailer_url', '')
+                        'poster_fetched': processor.movie_data[movie_name].get('poster_fetched', False)
                     }
                     db[f"movie_{movie_name}"] = movie_data_for_db
                 except Exception as e:
@@ -945,8 +939,7 @@ async def load_existing_data():
                     'is_photo': data.get('is_photo', False),
                     'tag': data.get('tag', '#MOVIE'),
                     'episodes_by_season': defaultdict(set, {k: set(v) for k, v in data.get('episodes_by_season', {}).items()}),
-                    'poster_fetched': data.get('poster_fetched', False),
-                    'trailer_url': data.get('trailer_url', '')
+                    'poster_fetched': data.get('poster_fetched', False)
                 }
         logger.info(f"Loaded {len(processor.movie_data)} movies from database")
     except Exception as e:
