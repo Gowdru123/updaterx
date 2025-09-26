@@ -7,6 +7,7 @@ from PIL import Image
 from typing import Optional, Dict, Any
 import urllib.parse
 import re # Import re module for use in clean_movie_name_for_search
+from bs4 import BeautifulSoup
 
 logger = logging.getLogger(__name__)
 
@@ -124,8 +125,96 @@ class TMDBPosterFetcher:
             logger.error(f"❌ Error searching TMDB for TV series: {e}")
             return None
 
+    async def fetch_google_images(self, query: str, limit: int = 10) -> list:
+        """Fetch images from Google Images search"""
+        url = f"https://www.google.com/search?q={query}&tbm=isch&hl=en&safe=off"
+        headers = {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36",
+            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
+            "Accept-Language": "en-US,en;q=0.5",
+            "Referer": "https://www.google.com/",
+            "DNT": "1",
+        }
+
+        try:
+            async with aiohttp.ClientSession() as session:
+                async with session.get(url, headers=headers, timeout=10) as response:
+                    if response.status != 200:
+                        logger.error(f"Google search failed with status: {response.status}")
+                        return []
+
+                    html = await response.text()
+                    soup = BeautifulSoup(html, 'html.parser')
+                    image_urls = []
+
+                    for script in soup.find_all('script'):
+                        if script.string:
+                            matches = re.findall(r'\"(https?://[^\"]+\.(?:jpg|jpeg|png|webp))\"', script.string)
+                            image_urls.extend(match for match in matches if match.startswith('http'))
+
+                    for img in soup.find_all('img', {'data-src': True}):
+                        image_urls.append(img['data-src'])
+
+                    return list(set(image_urls))[:limit]
+        except Exception as e:
+            logger.error(f"❌ Error fetching Google images: {e}")
+            return []
+
+    async def search_google_poster(self, title: str, year: Optional[str] = None, is_series: bool = False) -> Optional[bytes]:
+        """Search for poster using Google Images as fallback"""
+        try:
+            # Create search query
+            search_type = "tv series" if is_series else "movie"
+            search_query = f"{title} {year} {search_type} poster" if year else f"{title} {search_type} poster"
+            
+            logger.info(f"🔍 Searching Google Images for: {search_query}")
+            
+            # Get image URLs from Google
+            image_urls = await self.fetch_google_images(search_query, limit=5)
+            
+            if not image_urls:
+                logger.warning(f"❌ No images found on Google for: {search_query}")
+                return None
+
+            # Try to download and process the first valid image
+            async with aiohttp.ClientSession() as session:
+                for i, url in enumerate(image_urls):
+                    try:
+                        logger.info(f"📥 Trying Google image {i+1}/{len(image_urls)}: {url[:100]}...")
+                        
+                        async with session.get(url, timeout=10) as response:
+                            if response.status != 200:
+                                logger.warning(f"❌ Failed to download image {i+1}, status: {response.status}")
+                                continue
+
+                            image_data = await response.read()
+                            
+                            if len(image_data) < 5000:  # Skip very small images
+                                logger.warning(f"❌ Image {i+1} too small: {len(image_data)} bytes")
+                                continue
+
+                            # Process and resize the image
+                            processed_image = await self.process_and_resize_poster(image_data)
+                            if processed_image:
+                                logger.info(f"✅ Successfully processed Google image for: {title}")
+                                return processed_image
+                            else:
+                                logger.warning(f"❌ Failed to process image {i+1}")
+                                continue
+                                
+                    except Exception as e:
+                        logger.warning(f"❌ Error processing Google image {i+1}: {e}")
+                        continue
+
+            logger.warning(f"❌ Failed to get valid poster from Google for: {title}")
+            return None
+
+        except Exception as e:
+            logger.error(f"❌ Error in Google poster search: {e}")
+            return None
+
     async def search_poster(self, title: str, year: Optional[str] = None, is_series: bool = False) -> Optional[bytes]:
-        """Search for poster (movie or TV series) using TMDB API"""
+        """Search for poster (movie or TV series) using TMDB API with Google fallback"""
         try:
             if is_series:
                 # Try TV series search first
@@ -135,7 +224,13 @@ class TMDBPosterFetcher:
 
                 # Fallback to movie search
                 logger.info(f"🔄 TV search failed, trying movie search for: {title}")
-                return await self.search_movie_poster(title, year)
+                poster_data = await self.search_movie_poster(title, year)
+                if poster_data:
+                    return poster_data
+                    
+                # Final fallback to Google Images
+                logger.info(f"🔄 TMDB searches failed, trying Google Images for: {title}")
+                return await self.search_google_poster(title, year, is_series=True)
             else:
                 # Try movie search first
                 poster_data = await self.search_movie_poster(title, year)
@@ -144,7 +239,13 @@ class TMDBPosterFetcher:
 
                 # Fallback to TV series search
                 logger.info(f"🔄 Movie search failed, trying TV search for: {title}")
-                return await self.search_tv_poster(title, year)
+                poster_data = await self.search_tv_poster(title, year)
+                if poster_data:
+                    return poster_data
+                    
+                # Final fallback to Google Images
+                logger.info(f"🔄 TMDB searches failed, trying Google Images for: {title}")
+                return await self.search_google_poster(title, year, is_series=False)
 
         except Exception as e:
             logger.error(f"❌ Error in search_poster: {e}")
