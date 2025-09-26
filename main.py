@@ -61,7 +61,7 @@ IGNORE_WORDS = {
     "japanese", "nf", "netflix", "sonyliv", "sony", "sliv", "amzn", "prime",
     "primevideo", "hotstar", "zee5", "jio", "jhs", "aha", "hbo", "paramount",
     "apple", "hoichoi", "sunnxt", "viki", "rm_movie_flix", "rm", "movie", "flix",
-    "hq", "hdrip", "JNK_BACKUP", "jnk", "backup", "the", "dd", "moviez", "shetty", "moviez2",
+    "hq", "hdrip", "JNK_BACKUP", "jnk", "backup", "dd", "moviez", "shetty", "moviez2",
     "thedd", "snxt", "h", "264", "aac2", "0"
 }
 
@@ -368,7 +368,7 @@ class MovieProcessor:
         return result
 
     def extract_language_from_caption(self, caption_text):
-        """Extract language from message caption (hashtags like #Hindi)"""
+        """Extract language from message caption (hashtags and text patterns)"""
         if not caption_text:
             return "N/A"
             
@@ -378,7 +378,7 @@ class MovieProcessor:
         hashtag_pattern = re.findall(r'#(\w+)', caption_text)
         language_tokens = []
         
-        # Language mapping for hashtags
+        # Language mapping for hashtags and text
         lang_mapping = {
             'hindi': 'Hindi', 'english': 'English', 'tamil': 'Tamil', 
             'telugu': 'Telugu', 'malayalam': 'Malayalam', 'kannada': 'Kannada',
@@ -386,6 +386,7 @@ class MovieProcessor:
             'punjabi': 'Punjabi', 'urdu': 'Urdu', 'korean': 'Korean', 'japanese': 'Japanese'
         }
         
+        # Check hashtags
         for hashtag in hashtag_pattern:
             hashtag_lower = hashtag.lower()
             if hashtag_lower in lang_mapping:
@@ -393,6 +394,21 @@ class MovieProcessor:
                 if language_name not in language_tokens:
                     language_tokens.append(language_name)
                     logger.info(f"✅ Found caption language: #{hashtag} -> {language_name}")
+        
+        # Also check for direct language mentions in caption text
+        caption_lower = caption_text.lower()
+        for lang_key, lang_name in lang_mapping.items():
+            if lang_key in caption_lower and lang_name not in language_tokens:
+                language_tokens.append(lang_name)
+                logger.info(f"✅ Found caption text language: {lang_key} -> {lang_name}")
+        
+        # Check for common patterns like "Tamil", "Hindi" etc.
+        text_pattern = re.findall(r'\b(Tamil|Hindi|English|Telugu|Malayalam|Kannada|Bengali|Marathi|Gujarati|Punjabi|Urdu|Korean|Japanese)\b', caption_text, re.IGNORECASE)
+        for lang in text_pattern:
+            lang_name = lang.capitalize()
+            if lang_name not in language_tokens:
+                language_tokens.append(lang_name)
+                logger.info(f"✅ Found direct language mention: {lang} -> {lang_name}")
         
         result = ", ".join(language_tokens) if language_tokens else "N/A"
         logger.info(f"🌍 Final caption language: {result}")
@@ -489,19 +505,32 @@ class MovieProcessor:
         download_link = self.generate_download_link(movie_name)
         primary_tag = data.get('tag', '#MOVIE')
 
-        # Get the most common or first year
-        year_str = sorted(all_years)[0] if all_years else "N/A"
-        quality_str = ", ".join(sorted(all_qualities)) if all_qualities else "N/A"
-        language_str = ", ".join(sorted(all_languages)) if all_languages else "N/A"
-        file_sizes_str = " | ".join(all_file_sizes) if all_file_sizes else "N/A"
+        # Get the most common or first year (don't show if not found)
+        year_str = sorted(all_years)[0] if all_years else None
+        quality_str = ", ".join(sorted(all_qualities)) if all_qualities else None
+        language_str = ", ".join(sorted(all_languages)) if all_languages else None
+        file_sizes_str = " | ".join(all_file_sizes) if all_file_sizes else None
 
-        # Format vertically: Movie Name below Year below Language below Quality below File Sizes
+        # Format message - only show available information
         message = f"🎬 **{movie_name}**\n"
-        message += f"📅 **{year_str}**\n"
-        message += f"🌍 **{language_str}**\n"
-        message += f"🎯 **{quality_str}**\n"
-        message += f"📊 **File Sizes:** {file_sizes_str}\n\n"
-        message += f"📁 **Total Files:** {file_count}\n"
+        
+        # Only add year if found
+        if year_str:
+            message += f"📅 **{year_str}**\n"
+        
+        # Only add language if found
+        if language_str:
+            message += f"🌍 **{language_str}**\n"
+        
+        # Only add quality if found
+        if quality_str:
+            message += f"🎯 **{quality_str}**\n"
+        
+        # Only add file sizes if found
+        if file_sizes_str:
+            message += f"📊 **File Sizes:** {file_sizes_str}\n"
+        
+        message += f"\n📁 **Total Files:** {file_count}\n"
 
         # Add episode information for series
         if episodes_by_season and primary_tag == "#SERIES":
