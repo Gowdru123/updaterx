@@ -812,13 +812,13 @@ async def update_movie_post(movie_name):
         movie_data = processor.movie_data[movie_name]
         message_text = processor.format_movie_message(movie_name, movie_data)
 
-        # Create inline keyboard with get file button
-        from telethon.tl.types import KeyboardButtonUrl
-        from telethon.tl.types import ReplyKeyboardMarkup
-        from telethon import Button
-
+        # Generate direct download link for text format
         search_link = processor.generate_search_link(movie_name)
-        buttons = [[Button.url("🎬 ɢᴇᴛ ꜰɪʟᴇ", search_link)]]
+        
+        # Add download link to message text
+        message_text += f"\n\n📥 **ᴅᴏᴡɴʟᴏᴀᴅ ʜᴇʀᴇ:** {search_link}"
+        
+        buttons = None
 
         if movie_data['message_id']:
             # Edit existing message
@@ -828,7 +828,7 @@ async def update_movie_post(movie_name):
                     movie_data['message_id'],
                     message_text,
                     parse_mode='html',
-                    buttons=buttons
+                    link_preview=False
                 )
                 logger.info(f"Updated existing post for: {movie_name}")
             except Exception as e:
@@ -838,7 +838,7 @@ async def update_movie_post(movie_name):
                     UPDATE_CHANNEL_ID,
                     message_text,
                     parse_mode='html',
-                    buttons=buttons
+                    link_preview=False
                 )
                 processor.movie_data[movie_name]['message_id'] = sent_message.id
                 # Update database
@@ -896,7 +896,7 @@ async def update_movie_post(movie_name):
                         message_text,
                         file=poster_data,
                         parse_mode='html',
-                        buttons=buttons
+                        link_preview=False
                     )
                     processor.movie_data[movie_name]['is_photo'] = True
                     logger.info(f"📸 Created new post with poster for: {movie_name}")
@@ -906,7 +906,7 @@ async def update_movie_post(movie_name):
                         UPDATE_CHANNEL_ID,
                         message_text,
                         parse_mode='html',
-                        buttons=buttons
+                        link_preview=False
                     )
                     logger.info(f"📝 Created new post without poster for: {movie_name}")
 
@@ -935,7 +935,7 @@ async def update_movie_post(movie_name):
                     UPDATE_CHANNEL_ID,
                     message_text,
                     parse_mode='html',
-                    buttons=buttons
+                    link_preview=False
                 )
                 processor.movie_data[movie_name]['message_id'] = sent_message.id
 
