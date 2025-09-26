@@ -1,0 +1,122 @@
+NFO:telethon.network.mtprotosender:Connecting to 91.108.56.157:443/TcpFull...
+INFO:telethon.network.mtprotosender:Connection to 91.108.56.157:443/TcpFull complete!
+INFO:__main__:Bot started successfully!
+INFO:__main__:Loaded 4 movies from database
+INFO:__main__:🧹 Cleanup scheduler started - files will be auto-deleted after 24 hours
+INFO:__main__:🆕 New message received in DB channel
+INFO:__main__:📁 Processing file: @JNK_BACKUP -Doora Theera Yaana (2025) Kannada HDRip 400MB E.mkv
+INFO:__main__:📝 Caption text: **@JNK_BACKUP**** -Doora Theera Yaana (2025) Kannada HDRip 400MB ESub.mkv
+
+****#Kannada****
+
+◾◾◾◾◾◾◾...
+INFO:__main__:🔄 Starting media info extraction...
+INFO:__main__:🔍 Starting movie name extraction for: @JNK_BACKUP -Doora Theera Yaana (2025) Kannada HDRip 400MB E.mkv
+INFO:__main__:📝 After removing extension: @JNK_BACKUP -Doora Theera Yaana (2025) Kannada HDRip 400MB E
+INFO:__main__:🔤 Tokens after splitting: ['@JNK', 'BACKUP', 'Doora', 'Theera', 'Yaana', '(2025)', 'Kannada', 'HDRip', '400MB', 'E']
+INFO:__main__:❌ Skipping bad word token: '@JNK' (cleaned: 'jnk')
+INFO:__main__:❌ Skipping bad word token: 'BACKUP' (cleaned: 'backup')
+INFO:__main__:❌ Skipping bad word token: 'Kannada' (cleaned: 'kannada')
+INFO:__main__:❌ Skipping bad word token: 'HDRip' (cleaned: 'hdrip')
+INFO:__main__:🧹 After filtering channel names: ['Doora', 'Theera', 'Yaana', '(2025)', '400MB', 'E']
+INFO:__main__:🔍 Processing token 1: 'Doora'
+INFO:__main__:✅ Token 'Doora' added to clean list
+INFO:__main__:🔍 Processing token 2: 'Theera'
+INFO:__main__:✅ Token 'Theera' added to clean list
+INFO:__main__:🔍 Processing token 3: 'Yaana'
+INFO:__main__:✅ Token 'Yaana' added to clean list
+INFO:__main__:🔍 Processing token 4: '(2025)'
+INFO:__main__:📅 Found bracketed year '(2025)', stopping processing
+INFO:__main__:🎬 Joined clean tokens: 'Doora Theera Yaana'
+INFO:__main__:✨ Final movie name: 'Doora Theera Yaana'
+INFO:__main__:🎯 Extracting quality from: @JNK_BACKUP -Doora Theera Yaana (2025) Kannada HDRip 400MB E.mkv
+INFO:__main__:✅ Found quality token: hdrip -> HDRip
+INFO:__main__:🎯 Final quality: HDRip
+INFO:__main__:🌍 Extracting language from: @JNK_BACKUP -Doora Theera Yaana (2025) Kannada HDRip 400MB E.mkv
+INFO:__main__:✅ Found language token: kannada -> Kannada
+INFO:__main__:🌍 Final language: Kannada
+INFO:__main__:🌍 Extracting language from caption: **@JNK_BACKUP**** -Doora Theera Yaana (2025) Kannada HDRip 400MB ESub.mkv
+
+****#Kannada****
+
+◾◾◾◾◾◾◾◾◾◾◾◾◾
+🔞 Adult ****t.me/+hLQh-FvQcL0xNWZl****
+👀 Main channel ****@JNK_BACKUP****
+🛒 Loots channel ****@JNKFREELOOTS**** 
+◾◾◾◾◾◾◾◾◾◾◾◾◾**
+INFO:__main__:✅ Found caption language: #Kannada -> Kannada
+INFO:__main__:🌍 Final caption language: Kannada
+INFO:__main__:🎬 Extracted movie name: 'Doora Theera Yaana'
+INFO:__main__:📊 Media info: Quality=HDRip, Language=Kannada, Tag=#MOVIE, File Size=415.13 MB
+INFO:__main__:🔒 Acquiring lock for movie: Doora Theera Yaana
+INFO:__main__:✅ Lock acquired for movie: Doora Theera Yaana
+INFO:__main__:📝 Creating file data entry for: @JNK_BACKUP -Doora Theera Yaana (2025) Kannada HDRip 400MB E.mkv
+INFO:__main__:📂 Added file to movie data. Total files for 'Doora Theera Yaana': 1
+INFO:__main__:🎯 Updated qualities for 'Doora Theera Yaana': ['HDRip']
+INFO:__main__:🌍 Updated languages for 'Doora Theera Yaana': ['Kannada']
+INFO:__main__:🏷️ Set tag for 'Doora Theera Yaana': #MOVIE
+INFO:__main__:💾 Saving movie data to database for: Doora Theera Yaana
+INFO:__main__:✅ Successfully saved to database: movie_Doora Theera Yaana
+INFO:__main__:✅ Successfully processed file: @JNK_BACKUP -Doora Theera Yaana (2025) Kannada HDRip 400MB E.mkv for movie: Doora Theera Yaana
+INFO:__main__:⏰ Scheduling update for 'Doora Theera Yaana' with 5 second delay
+INFO:__main__:🆕 New message received in DB channel
+INFO:__main__:📁 Processing file: @JNK_BACKUP -  They Call Him OG (2025) Tamil HQ PreDVD  x264.mkv
+INFO:__main__:📝 Caption text: **@JNK_BACKUP**** -  They Call Him OG (2025) Tamil HQ PreDVD  x264  HQ Clean  AAC  400MB.mkv
+
+****#T...
+INFO:__main__:🔄 Starting media info extraction...
+INFO:__main__:🔍 Starting movie name extraction for: @JNK_BACKUP -  They Call Him OG (2025) Tamil HQ PreDVD  x264.mkv
+INFO:__main__:📝 After removing extension: @JNK_BACKUP -  They Call Him OG (2025) Tamil HQ PreDVD  x264
+INFO:__main__:🔤 Tokens after splitting: ['@JNK', 'BACKUP', 'They', 'Call', 'Him', 'OG', '(2025)', 'Tamil', 'HQ', 'PreDVD', 'x264']
+INFO:__main__:❌ Skipping bad word token: '@JNK' (cleaned: 'jnk')
+INFO:__main__:❌ Skipping bad word token: 'BACKUP' (cleaned: 'backup')
+INFO:__main__:❌ Skipping bad word token: 'Tamil' (cleaned: 'tamil')
+INFO:__main__:❌ Skipping bad word token: 'HQ' (cleaned: 'hq')
+INFO:__main__:❌ Skipping bad word token: 'PreDVD' (cleaned: 'predvd')
+INFO:__main__:🧹 After filtering channel names: ['They', 'Call', 'Him', 'OG', '(2025)', 'x264']
+INFO:__main__:🔍 Processing token 1: 'They'
+INFO:__main__:✅ Token 'They' added to clean list
+INFO:__main__:🔍 Processing token 2: 'Call'
+INFO:__main__:✅ Token 'Call' added to clean list
+INFO:__main__:🔍 Processing token 3: 'Him'
+INFO:__main__:✅ Token 'Him' added to clean list
+INFO:__main__:🔍 Processing token 4: 'OG'
+INFO:__main__:✅ Token 'OG' added to clean list
+INFO:__main__:🔍 Processing token 5: '(2025)'
+INFO:__main__:📅 Found bracketed year '(2025)', stopping processing
+INFO:__main__:🎬 Joined clean tokens: 'They Call Him OG'
+INFO:__main__:✨ Final movie name: 'They Call Him Og'
+INFO:__main__:🎯 Extracting quality from: @JNK_BACKUP -  They Call Him OG (2025) Tamil HQ PreDVD  x264.mkv
+INFO:__main__:✅ Found quality token: predvd -> PreDVD
+INFO:__main__:🎯 Final quality: PreDVD
+INFO:__main__:🌍 Extracting language from: @JNK_BACKUP -  They Call Him OG (2025) Tamil HQ PreDVD  x264.mkv
+INFO:__main__:✅ Found language token: tamil -> Tamil
+INFO:__main__:🌍 Final language: Tamil
+INFO:__main__:🌍 Extracting language from caption: **@JNK_BACKUP**** -  They Call Him OG (2025) Tamil HQ PreDVD  x264  HQ Clean  AAC  400MB.mkv
+
+****#Tamil****
+
+◾◾◾◾◾◾◾◾◾◾◾◾◾
+🔞 Adult ****t.me/+hLQh-FvQcL0xNWZl****
+👀 Main channel ****@JNK_BACKUP****
+🛒 Loots channel ****@JNKFREELOOTS**** 
+◾◾◾◾◾◾◾◾◾◾◾◾◾**
+INFO:__main__:✅ Found caption language: #Tamil -> Tamil
+INFO:__main__:🌍 Final caption language: Tamil
+INFO:__main__:🎬 Extracted movie name: 'They Call Him Og'
+INFO:__main__:📊 Media info: Quality=PreDVD, Language=Tamil, Tag=#MOVIE, File Size=424.72 MB
+INFO:__main__:🔒 Acquiring lock for movie: They Call Him Og
+INFO:__main__:✅ Lock acquired for movie: They Call Him Og
+INFO:__main__:📝 Creating file data entry for: @JNK_BACKUP -  They Call Him OG (2025) Tamil HQ PreDVD  x264.mkv
+INFO:__main__:📂 Added file to movie data. Total files for 'They Call Him Og': 1
+INFO:__main__:🎯 Updated qualities for 'They Call Him Og': ['PreDVD']
+INFO:__main__:🌍 Updated languages for 'They Call Him Og': ['Tamil']
+INFO:__main__:🏷️ Set tag for 'They Call Him Og': #MOVIE
+INFO:__main__:💾 Saving movie data to database for: They Call Him Og
+INFO:__main__:✅ Successfully saved to database: movie_They Call Him Og
+INFO:__main__:✅ Successfully processed file: @JNK_BACKUP -  They Call Him OG (2025) Tamil HQ PreDVD  x264.mkv for movie: They Call Him Og
+INFO:__main__:⏰ Scheduling update for 'They Call Him Og' with 5 second delay
+INFO:__main__:🎬 Fetching poster for new movie: Doora Theera Yaana
+ERROR:__main__:Error sending message with poster: 'Logger' object has no attribute 'logger'
+INFO:__main__:🎬 Fetching poster for new movie: They Call Him Og
+ERROR:__main__:Error sending message with poster: 'Logger' object has no attribute 'logger'

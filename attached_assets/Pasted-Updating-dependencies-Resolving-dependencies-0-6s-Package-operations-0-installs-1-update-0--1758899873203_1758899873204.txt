@@ -1,0 +1,87 @@
+Updating dependencies
+Resolving dependencies... (0.6s)
+
+Package operations: 0 installs, 1 update, 0 removals
+
+  • Updating aiohttp (3.12.13 -> 3.11.18): Failed
+
+  CalledProcessError
+
+  Command '['pip', 'uninstall', 'aiohttp', '-y']' returned non-zero exit status 2.
+
+  at /nix/store/7d088dip86hlzri9sk0h78b63yfmx0a0-python3-3.11.13/lib/python3.11/subprocess.py:571 in run
+       567│             # We don't call process.wait() as .__exit__ does that for us.
+       568│             raise
+       569│         retcode = process.poll()
+       570│         if check and retcode:
+    →  571│             raise CalledProcessError(retcode, process.args,
+       572│                                      output=stdout, stderr=stderr)
+       573│     return CompletedProcess(process.args, retcode, stdout, stderr)
+       574│ 
+       575│ 
+
+The following error occurred when trying to handle this error:
+
+
+  EnvCommandError
+
+  Command ['pip', 'uninstall', 'aiohttp', '-y'] errored with the following return code 2
+  
+  Output:
+  ERROR: Exception:
+  Traceback (most recent call last):
+    File "/nix/store/yaps09f01jp3fd1405qlr0qz6haf6z03-python3.11-pip-25.0.1/lib/python3.11/site-packages/pip/_internal/cli/base_command.py", line 106, in _run_wrapper
+      status = _inner_run()
+               ^^^^^^^^^^^^
+    File "/nix/store/yaps09f01jp3fd1405qlr0qz6haf6z03-python3.11-pip-25.0.1/lib/python3.11/site-packages/pip/_internal/cli/base_command.py", line 97, in _inner_run
+      return self.run(options, args)
+             ^^^^^^^^^^^^^^^^^^^^^^^
+    File "/nix/store/yaps09f01jp3fd1405qlr0qz6haf6z03-python3.11-pip-25.0.1/lib/python3.11/site-packages/pip/_internal/commands/uninstall.py", line 66, in run
+      session = self.get_default_session(options)
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    File "/nix/store/yaps09f01jp3fd1405qlr0qz6haf6z03-python3.11-pip-25.0.1/lib/python3.11/site-packages/pip/_internal/cli/index_command.py", line 76, in get_default_session
+      self._session = self.enter_context(self._build_session(options))
+                                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    File "/nix/store/yaps09f01jp3fd1405qlr0qz6haf6z03-python3.11-pip-25.0.1/lib/python3.11/site-packages/pip/_internal/cli/index_command.py", line 99, in _build_session
+      session = PipSession(
+                ^^^^^^^^^^^
+    File "/nix/store/yaps09f01jp3fd1405qlr0qz6haf6z03-python3.11-pip-25.0.1/lib/python3.11/site-packages/pip/_internal/network/session.py", line 345, in __init__
+      self.headers["User-Agent"] = user_agent()
+                                   ^^^^^^^^^^^^
+    File "/nix/store/yaps09f01jp3fd1405qlr0qz6haf6z03-python3.11-pip-25.0.1/lib/python3.11/site-packages/pip/_internal/network/session.py", line 142, in user_agent
+      linux_distribution = distro.name(), distro.version(), distro.codename()
+                                          ^^^^^^^^^^^^^^^^
+    File "/nix/store/yaps09f01jp3fd1405qlr0qz6haf6z03-python3.11-pip-25.0.1/lib/python3.11/site-packages/pip/_vendor/distro/distro.py", line 371, in version
+      return _distro.version(pretty, best)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    File "/nix/store/yaps09f01jp3fd1405qlr0qz6haf6z03-python3.11-pip-25.0.1/lib/python3.11/site-packages/pip/_vendor/distro/distro.py", line 900, in version
+      self.uname_attr("release"),
+      ^^^^^^^^^^^^^^^^^^^^^^^^^^
+    File "/nix/store/yaps09f01jp3fd1405qlr0qz6haf6z03-python3.11-pip-25.0.1/lib/python3.11/site-packages/pip/_vendor/distro/distro.py", line 1088, in uname_attr
+      return self._uname_info.get(attribute, "")
+             ^^^^^^^^^^^^^^^^
+    File "/nix/store/blmbwskhrdv9y3vibxbwhw7602aikfww-python3-3.11.13/lib/python3.11/functools.py", line 1001, in __get__
+      val = self.func(instance)
+            ^^^^^^^^^^^^^^^^^^^
+    File "/nix/store/yaps09f01jp3fd1405qlr0qz6haf6z03-python3.11-pip-25.0.1/lib/python3.11/site-packages/pip/_vendor/distro/distro.py", line 1202, in _uname_info
+      stdout = subprocess.check_output(cmd, stderr=subprocess.DEVNULL)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    File "/nix/store/blmbwskhrdv9y3vibxbwhw7602aikfww-python3-3.11.13/lib/python3.11/subprocess.py", line 466, in check_output
+      return run(*popenargs, stdout=PIPE, timeout=timeout, check=True,
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    File "/nix/store/blmbwskhrdv9y3vibxbwhw7602aikfww-python3-3.11.13/lib/python3.11/subprocess.py", line 571, in run
+      raise CalledProcessError(retcode, process.args,
+  subprocess.CalledProcessError: Command '('uname', '-rs')' returned non-zero exit status 2.
+  
+
+  at /nix/store/qkd5csfa32wmnfhgydfbb4lfdqsb87zg-poetry-in-venv/env/lib/python3.11/site-packages/poetry/utils/env.py:1523 in _run
+      1519│                 output = ""
+      1520│             else:
+      1521│                 output = subprocess.check_output(cmd, stderr=stderr, env=env, **kwargs)
+      1522│         except CalledProcessError as e:
+    → 1523│             raise EnvCommandError(e, input=input_)
+      1524│ 
+      1525│         return decode(output)
+      1526│ 
+      1527│     def execute(self, bin: str, *args: str, **kwargs: Any) -> int:
+

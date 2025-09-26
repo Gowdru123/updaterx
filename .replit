@@ -5,7 +5,7 @@ integrations = ["github:1.0.0"]
 
 [nix]
 channel = "stable-25_05"
-packages = ["openssl", "u-root-cmds"]
+packages = ["freetype", "lcms2", "libimagequant", "libjpeg", "libtiff", "libwebp", "libxcrypt", "openjpeg", "openssl", "tcl", "tk", "u-root-cmds", "zlib"]
 
 [workflows]
 runButton = "Project"
@@ -29,3 +29,7 @@ args = "python main.py"
 
 [workflows.workflow.metadata]
 outputType = "console"
+
+[deployment]
+deploymentTarget = "vm"
+run = ["python", "main.py"]

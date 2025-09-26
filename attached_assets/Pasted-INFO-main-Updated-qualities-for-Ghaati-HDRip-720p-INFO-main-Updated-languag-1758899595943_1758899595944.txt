@@ -1,0 +1,57 @@
+INFO:__main__:🎯 Updated qualities for 'Ghaati': ['HDRip', '720p']
+INFO:__main__:🌍 Updated languages for 'Ghaati': ['Kannada']
+INFO:__main__:🏷️ Set tag for 'Ghaati': #MOVIE
+INFO:__main__:💾 Saving movie data to database for: Ghaati
+INFO:__main__:✅ Successfully saved to database: movie_Ghaati
+INFO:__main__:✅ Successfully processed file: @AddaFiles - Ghaati (2025) Kannada HQ HDRip - 720p - x26.mkv for movie: Ghaati
+INFO:__main__:⏰ Scheduling update for 'Ghaati' with 5 second delay
+INFO:__main__:🆕 New message received in DB channel
+INFO:__main__:📁 Processing file: @AddaFiles - Ghaati (2025) Kannada HQ HDRip - 1080p - HE.mkv
+INFO:__main__:📝 Caption text: **@AddaFiles**** - Ghaati (2025) Kannada HQ HDRip - ****#1080p**** - ****#HEVC**** - x265 - (DD+5.1 ...
+INFO:__main__:🔄 Starting media info extraction...
+INFO:__main__:🔍 Starting movie name extraction for: @AddaFiles - Ghaati (2025) Kannada HQ HDRip - 1080p - HE.mkv
+INFO:__main__:📝 After removing extension: @AddaFiles - Ghaati (2025) Kannada HQ HDRip - 1080p - HE
+INFO:__main__:🔤 Tokens after splitting: ['@AddaFiles', 'Ghaati', '(2025)', 'Kannada', 'HQ', 'HDRip', '1080p', 'HE']
+INFO:__main__:❌ Skipping bad word token: 'Kannada' (cleaned: 'kannada')
+INFO:__main__:❌ Skipping bad word token: 'HQ' (cleaned: 'hq')
+INFO:__main__:❌ Skipping bad word token: 'HDRip' (cleaned: 'hdrip')
+INFO:__main__:❌ Skipping bad word token: '1080p' (cleaned: '1080p')
+INFO:__main__:🧹 After filtering channel names: ['@AddaFiles', 'Ghaati', '(2025)', 'HE']
+INFO:__main__:🔍 Processing token 1: '@AddaFiles'
+INFO:__main__:🧹 Removed special chars (@#~-_): '@AddaFiles' -> 'AddaFiles'
+INFO:__main__:❌ Token 'AddaFiles' found in ignore list, removing
+INFO:__main__:🔍 Processing token 2: 'Ghaati'
+INFO:__main__:✅ Token 'Ghaati' added to clean list
+INFO:__main__:🔍 Processing token 3: '(2025)'
+INFO:__main__:📅 Found bracketed year '(2025)', stopping processing
+INFO:__main__:🎬 Joined clean tokens: 'Ghaati'
+INFO:__main__:✨ Final movie name: 'Ghaati'
+INFO:__main__:🎯 Extracting quality from: @AddaFiles - Ghaati (2025) Kannada HQ HDRip - 1080p - HE.mkv
+INFO:__main__:✅ Found quality token: hdrip -> HDRip
+INFO:__main__:✅ Found quality token: 1080p -> 1080p
+INFO:__main__:🎯 Final quality: HDRip, 1080p
+INFO:__main__:🌍 Extracting language from: @AddaFiles - Ghaati (2025) Kannada HQ HDRip - 1080p - HE.mkv
+INFO:__main__:✅ Found language token: kannada -> Kannada
+INFO:__main__:🌍 Final language: Kannada
+INFO:__main__:🌍 Extracting language from caption: **@AddaFiles**** - Ghaati (2025) Kannada HQ HDRip - ****#1080p**** - ****#HEVC**** - x265 - (DD+5.1 - 192Kbps & AAC) - 1.5GB - ESub.mkv **
+
+__🔊   Kannada__
+INFO:__main__:✅ Found caption text language: kannada -> Kannada
+INFO:__main__:🌍 Final caption language: Kannada
+INFO:__main__:🎬 Extracted movie name: 'Ghaati'
+INFO:__main__:📊 Media info: Quality=HDRip, 1080p, Language=Kannada, Tag=#MOVIE, File Size=1.77 GB
+INFO:__main__:🔒 Acquiring lock for movie: Ghaati
+INFO:__main__:✅ Lock acquired for movie: Ghaati
+INFO:__main__:📝 Creating file data entry for: @AddaFiles - Ghaati (2025) Kannada HQ HDRip - 1080p - HE.mkv
+INFO:__main__:📂 Added file to movie data. Total files for 'Ghaati': 6
+INFO:__main__:🎯 Updated qualities for 'Ghaati': ['HDRip', '720p', '1080p']
+INFO:__main__:🌍 Updated languages for 'Ghaati': ['Kannada']
+INFO:__main__:🏷️ Set tag for 'Ghaati': #MOVIE
+INFO:__main__:💾 Saving movie data to database for: Ghaati
+INFO:__main__:✅ Successfully saved to database: movie_Ghaati
+INFO:__main__:✅ Successfully processed file: @AddaFiles - Ghaati (2025) Kannada HQ HDRip - 1080p - HE.mkv for movie: Ghaati
+INFO:__main__:⏰ Scheduling update for 'Ghaati' with 5 second delay
+INFO:__main__:🆕 New message received in DB channel
+INFO:__main__:📄 Message has no document, skipping
+INFO:__main__:🎬 Fetching poster for new movie: Ghaati
+ERROR:__main__:Error sending message with poster: name 'youtube_fetcher' is not defined
