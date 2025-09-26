@@ -1,0 +1,93 @@
+AAC - 1.2GB - ESub.mkv**
+
+📽️ 540p ◖◗ ⏳ 2h20m31s
+
+__🔈 Tamil, Telugu __
+📄  
+
+__✶🚀 Uploaded By ≋ ____@MLTBRM____ ϟ__
+INFO:__main__:✅ Found caption text language: tamil -> Tamil
+INFO:__main__:✅ Found caption text language: telugu -> Telugu
+INFO:__main__:🌍 Final caption language: Tamil, Telugu
+INFO:__main__:🎬 Extracted movie name: 'Valiyavan [balamevvadu]'
+INFO:__main__:📊 Media info: Quality=HDRip, Language=Tamil, Telugu, Tag=#MOVIE, File Size=1.21 GB
+INFO:__main__:🔒 Acquiring lock for movie: Valiyavan [balamevvadu]
+INFO:__main__:✅ Lock acquired for movie: Valiyavan [balamevvadu]
+INFO:__main__:📝 Creating file data entry for: @RM_Movie_Flix - - Valiyavan [Balamevvadu] (2025) HQ HDRip -.mkv
+INFO:__main__:📂 Added file to movie data. Total files for 'Valiyavan [balamevvadu]': 1
+INFO:__main__:🎯 Updated qualities for 'Valiyavan [balamevvadu]': ['HDRip']
+INFO:__main__:🌍 Updated languages for 'Valiyavan [balamevvadu]': ['Tamil', 'Telugu']
+INFO:__main__:🏷️ Set tag for 'Valiyavan [balamevvadu]': #MOVIE
+INFO:__main__:💾 Saving movie data to database for: Valiyavan [balamevvadu]
+INFO:__main__:✅ Successfully saved to database: movie_Valiyavan [balamevvadu]
+INFO:__main__:✅ Successfully processed file: @RM_Movie_Flix - - Valiyavan [Balamevvadu] (2025) HQ HDRip -.mkv for movie: Valiyavan [balamevvadu]
+INFO:__main__:⏰ Scheduling update for 'Valiyavan [balamevvadu]' with 5 second delay
+INFO:__main__:🆕 New message received in DB channel
+INFO:__main__:📁 Processing file: @RM_Movie_Flix - - Mom (2024) HDRip - x264 - [Tamil + Telugu.mkv
+INFO:__main__:📝 Caption text: **@RM_Movie_Flix**** - - Mom (2024) HDRip - x264 - [Tamil + Telugu + Hindi] - (AAC 2.0) - 400MB - ES...
+INFO:__main__:🔄 Starting media info extraction...
+INFO:__main__:🔍 Starting movie name extraction for: @RM_Movie_Flix - - Mom (2024) HDRip - x264 - [Tamil + Telugu.mkv
+INFO:__main__:📝 After removing extension: @RM_Movie_Flix - - Mom (2024) HDRip - x264 - [Tamil + Telugu
+INFO:__main__:🔤 Tokens after splitting: ['@RM', 'Movie', 'Flix', 'Mom', '(2024)', 'HDRip', 'x264', '[Tamil', '+', 'Telugu']
+INFO:__main__:❌ Skipping bad word token: '@RM' (cleaned: 'rm')
+INFO:__main__:❌ Skipping bad word token: 'Movie' (cleaned: 'movie')
+INFO:__main__:❌ Skipping bad word token: 'Flix' (cleaned: 'flix')
+INFO:__main__:❌ Skipping bad word token: 'HDRip' (cleaned: 'hdrip')
+INFO:__main__:❌ Skipping bad word token: 'Telugu' (cleaned: 'telugu')
+INFO:__main__:🧹 After filtering channel names: ['Mom', '(2024)', 'x264', '[Tamil', '+']
+INFO:__main__:🔍 Processing token 1: 'Mom'
+INFO:__main__:✅ Token 'Mom' added to clean list
+INFO:__main__:🔍 Processing token 2: '(2024)'
+INFO:__main__:📅 Found bracketed year '(2024)', stopping processing
+INFO:__main__:🎬 Joined clean tokens: 'Mom'
+INFO:__main__:✨ Final movie name: 'Mom'
+INFO:__main__:🎯 Extracting quality from: @RM_Movie_Flix - - Mom (2024) HDRip - x264 - [Tamil + Telugu.mkv
+INFO:__main__:✅ Found quality token: hdrip -> HDRip
+INFO:__main__:🎯 Final quality: HDRip
+INFO:__main__:🌍 Extracting language from: @RM_Movie_Flix - - Mom (2024) HDRip - x264 - [Tamil + Telugu.mkv
+INFO:__main__:✅ Found language token: telugu -> Telugu
+INFO:__main__:🌍 Final language: Telugu
+INFO:__main__:🌍 Extracting language from caption: **@RM_Movie_Flix**** - - Mom (2024) HDRip - x264 - [Tamil + Telugu + Hindi] - (AAC 2.0) - 400MB - ESub.mkv**
+
+📽️ 480p ◖◗ ⏳ 1h35m35s
+
+__🔈 Tamil, Telugu, Hindi __
+📄 English 
+
+__✶🚀 Uploaded By ≋ ____@MLTBRM____ ϟ__
+INFO:__main__:✅ Found caption text language: hindi -> Hindi
+INFO:__main__:✅ Found caption text language: english -> English
+INFO:__main__:✅ Found caption text language: tamil -> Tamil
+INFO:__main__:✅ Found caption text language: telugu -> Telugu
+INFO:__main__:🌍 Final caption language: Hindi, English, Tamil, Telugu
+INFO:__main__:🎬 Extracted movie name: 'Mom'
+INFO:__main__:📊 Media info: Quality=HDRip, Language=Hindi, English, Tamil, Telugu, Tag=#MOVIE, File Size=442.70 MB
+INFO:__main__:🔒 Acquiring lock for movie: Mom
+INFO:__main__:✅ Lock acquired for movie: Mom
+INFO:__main__:📝 Creating file data entry for: @RM_Movie_Flix - - Mom (2024) HDRip - x264 - [Tamil + Telugu.mkv
+INFO:__main__:📂 Added file to movie data. Total files for 'Mom': 1
+INFO:__main__:🎯 Updated qualities for 'Mom': ['HDRip']
+INFO:__main__:🌍 Updated languages for 'Mom': ['Tamil', 'Telugu', 'English', 'Hindi']
+INFO:__main__:🏷️ Set tag for 'Mom': #MOVIE
+INFO:__main__:💾 Saving movie data to database for: Mom
+INFO:__main__:✅ Successfully saved to database: movie_Mom
+INFO:__main__:✅ Successfully processed file: @RM_Movie_Flix - - Mom (2024) HDRip - x264 - [Tamil + Telugu.mkv for movie: Mom
+INFO:__main__:⏰ Scheduling update for 'Mom' with 5 second delay
+INFO:__main__:🎬 Fetching poster for new movie: Valiyavan Balamevvadu
+INFO:__main__:🔍 Google Images search query: Valiyavan+Balamevvadu+2025+poster
+INFO:image_search:🔍 Searching Google Images with query: Valiyavan+Balamevvadu+2025+poster
+INFO:__main__:🎬 Fetching poster for new movie: Valiyavan [balamevvadu]
+INFO:__main__:🔍 Google Images search query: Valiyavan+[balamevvadu]+2025+poster
+INFO:image_search:🔍 Searching Google Images with query: Valiyavan+[balamevvadu]+2025+poster
+INFO:__main__:🎬 Fetching poster for new movie: Mom
+INFO:__main__:🔍 Google Images search query: Mom+2024+poster
+INFO:image_search:🔍 Searching Google Images with query: Mom+2024+poster
+ERROR:image_search:❌ Error during poster search: 400, message='Can not decode content-encoding: brotli (br). Please install `Brotli`', url=URL('https://www.google.com/search?q=Valiyavan+Balamevvadu+2025+poster&safe=active&udm=2')
+WARNING:__main__:⚠️ Could not fetch poster for: Valiyavan Balamevvadu
+INFO:__main__:📝 Created new post without poster for: Valiyavan Balamevvadu
+ERROR:image_search:❌ Error during poster search: 400, message='Can not decode content-encoding: brotli (br). Please install `Brotli`', url=URL('https://www.google.com/search?q=Mom+2024+poster&safe=active&udm=2')
+WARNING:__main__:⚠️ Could not fetch poster for: Mom
+ERROR:image_search:❌ Error during poster search: 400, message='Can not decode content-encoding: brotli (br). Please install `Brotli`', url=URL('https://www.google.com/search?q=Valiyavan+%5Bbalamevvadu%5D+2025+poster&safe=active&udm=2')
+WARNING:__main__:⚠️ Could not fetch poster for: Valiyavan [balamevvadu]
+INFO:__main__:📝 Created new post without poster for: Mom
+INFO:__main__:📝 Created new post without poster for: Valiyavan [balamevvadu]

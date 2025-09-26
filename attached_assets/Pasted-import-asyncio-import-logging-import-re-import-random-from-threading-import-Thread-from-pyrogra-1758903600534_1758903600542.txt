@@ -1,0 +1,408 @@
+import asyncio
+import logging
+import re
+import random
+from threading import Thread
+from pyrogram import Client, filters
+from pyrogram.types import (InlineQuery, InlineQueryResultPhoto, Message, 
+                           InlineKeyboardMarkup, InlineKeyboardButton)
+from pyrogram.enums import ParseMode
+from pymongo import MongoClient
+from bs4 import BeautifulSoup
+import aiohttp
+from pyrogram.errors import ChatAdminRequired, FloodWait, ChannelPrivate
+from flask import Flask
+
+# ──────────────── Logging Setup ────────────────
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(levelname)s - %(message)s"
+)
+logger = logging.getLogger(__name__)
+
+# ──────────────── Bot Configuration ────────────────
+API_ID = 28387000
+API_HASH = "0afcd476d981c80f8c73d1ca0e1f4f34"
+BOT_TOKEN = "7997058788:AAFxNNFOQ6cEWMwp2K8oarYw6GZpPZD1Iio"
+OWNER_ID = 6415368038
+
+# ──────────────── Database Setup ────────────────
+mongo_url = "mongodb+srv://starjnanesh:starjnanesh@cluster0.xusfb.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0"
+mongo_client = MongoClient(mongo_url)
+db = mongo_client["imagesearchbot"]
+users_collection = db["users"]
+
+# ──────────────── Force Subscription ────────────────
+FORCE_SUB_CHANNELS = ["@JNK_BACKUP", "@JNKFREELOOTS", -1001910410959, -1003011512366]
+
+# ──────────────── Pyrogram Client ────────────────
+app = Client("inline-bot-session", api_id=API_ID, api_hash=API_HASH, bot_token=BOT_TOKEN)
+
+# ──────────────── Image Search Engine ────────────────
+async def fetch_google_images(query: str, limit: int = 50):
+    url = f"https://www.google.com/search?q={query}&tbm=isch&hl=en&safe=off"
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36",
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
+        "Accept-Language": "en-US,en;q=0.5",
+        "Referer": "https://www.google.com/",
+        "DNT": "1",
+    }
+
+    try:
+        async with aiohttp.ClientSession() as session:
+            async with session.get(url, headers=headers, timeout=10) as response:
+                if response.status != 200:
+                    logger.error(f"Google search failed with status: {response.status}")
+                    return []
+
+                html = await response.text()
+                soup = BeautifulSoup(html, 'html.parser')
+                image_urls = []
+
+                for script in soup.find_all('script'):
+                    if script.string:
+                        matches = re.findall(r'\"(https?://[^\"]+\.(?:jpg|jpeg|png|webp))\"', script.string)
+                        image_urls.extend(match for match in matches if match.startswith('http'))
+
+                for img in soup.find_all('img', {'data-src': True}):
+                    image_urls.append(img['data-src'])
+
+                return list(set(image_urls))[:limit]
+    except Exception as e:
+        logger.error(f"Error fetching Google images: {e}")
+        return []
+
+# ──────────────── Subscription System ────────────────
+async def check_single_channel(channel, user_id):
+    """
+    Check if user is subscribed to a single channel
+    Returns None if user is subscribed (or channel is inaccessible)
+    Returns channel if user is NOT subscribed
+    """
+    for attempt in range(3):  # max 3 tries
+        try:
+            # Convert string channel IDs to integers if needed
+            if isinstance(channel, str) and channel.startswith('-'):
+                channel = int(channel)
+            
+            # Get channel info first
+            try:
+                chat = await app.get_chat(channel)
+                logger.info(f"Successfully got chat info for {channel}: {chat.title if hasattr(chat, 'title') else 'Unknown'}")
+            except Exception as e:
+                logger.error(f"Cannot access channel {channel}: {e}")
+                # If bot cannot access channel, skip this channel check
+                return None  # Don't block user if channel is inaccessible
+            
+            # Check user membership
+            try:
+                member = await app.get_chat_member(chat.id, user_id)
+                logger.info(f"User {user_id} status in {channel}: {member.status}")
+                
+                # Import ChatMemberStatus to compare properly
+                from pyrogram.enums import ChatMemberStatus
+                
+                # User is subscribed if they are member, administrator, or creator
+                if member.status in [ChatMemberStatus.MEMBER, ChatMemberStatus.ADMINISTRATOR, ChatMemberStatus.OWNER]:
+                    logger.info(f"User {user_id} is subscribed to {channel}")
+                    return None  # User is subscribed - don't block
+                else:
+                    logger.info(f"User {user_id} is NOT subscribed to {channel} (status: {member.status})")
+                    return channel  # User is not subscribed - return channel to block
+                    
+            except Exception as e:
+                logger.error(f"Cannot check user membership in {channel}: {e}")
+                # If we can't check membership, assume not subscribed to be safe
+                return channel
+                
+        except FloodWait as e:
+            logger.info(f"FloodWait for {e.value} seconds while checking {channel}")
+            await asyncio.sleep(e.value + 1)
+        except ChatAdminRequired:
+            logger.error(f"Bot is not admin in {channel}")
+            return None  # Skip this channel if bot is not admin
+        except ChannelPrivate:
+            logger.error(f"Channel {channel} is private and bot has no access")
+            return None  # Skip this channel if private
+        except Exception as e:
+            logger.error(f"Error checking {channel} for user {user_id} (attempt {attempt+1}): {e}")
+            if attempt == 2:  # Last attempt
+                return None  # Skip problematic channels on final failure
+            await asyncio.sleep(2)  # Wait before retry
+    
+    # If all attempts failed, don't block the user
+    return None
+
+async def check_user_subscribed(user_id: int):
+    """
+    Check if user is subscribed to all force sub channels
+    Returns None if user is subscribed to all channels
+    Returns list of unsubscribed channels if user needs to join some
+    """
+    unsubscribed_channels = []
+    
+    for channel in FORCE_SUB_CHANNELS:
+        result = await check_single_channel(channel, user_id)
+        if result is not None:  # result contains the channel if user is NOT subscribed
+            unsubscribed_channels.append(result)
+    
+    # Return None if all channels are subscribed (empty list), otherwise return unsubscribed channels
+    return unsubscribed_channels if unsubscribed_channels else None
+
+async def generate_invite_link(channel):
+    for attempt in range(3):
+        try:
+            # Convert string channel IDs to integers if needed
+            if isinstance(channel, str) and channel.startswith('-'):
+                channel = int(channel)
+                
+            chat = await app.get_chat(channel)
+            
+            # If channel has username, use public link
+            if hasattr(chat, 'username') and chat.username:
+                return f"https://t.me/{chat.username}"
+            
+            # Try to create invite link for private channels
+            try:
+                # Check if bot has permission to create invite links
+                bot_member = await app.get_chat_member(chat.id, "me")
+                if bot_member.privileges and bot_member.privileges.can_invite_users:
+                    invite_link = await app.export_chat_invite_link(chat.id)
+                    return invite_link
+                else:
+                    logger.warning(f"Bot doesn't have invite permission for {channel}")
+                    return f"Contact admin for invite to {chat.title if hasattr(chat, 'title') else str(channel)}"
+            except Exception as e:
+                logger.error(f"Could not create invite link for {channel}: {e}")
+                return f"Contact admin for invite to {chat.title if hasattr(chat, 'title') else str(channel)}"
+                
+        except FloodWait as e:
+            await asyncio.sleep(e.value + 1)
+        except Exception as e:
+            logger.error(f"Failed to generate link for {channel} (attempt {attempt+1}): {e}")
+            if attempt == 2:
+                return f"Contact admin for invite to {str(channel)}"
+            await asyncio.sleep(1)
+
+# ──────────────── Command Handlers ────────────────
+@app.on_message(filters.private & filters.command("start"))
+async def start_command(client, message: Message):
+    user_id = message.from_user.id
+
+    # Register new user
+    if not users_collection.find_one({"_id": user_id}):
+        users_collection.insert_one({"_id": user_id})
+        logger.info(f"New user registered: {user_id}")
+
+    # Send "wait checking" message
+    wait_msg = await message.reply("⏳ Please wait while we check your subscription status...")
+
+    # Check subscription status
+    subscription_status = await check_user_subscribed(user_id)
+
+    # Delete the "wait checking" message
+    try:
+        await wait_msg.delete()
+    except Exception as e:
+        logger.error(f"Error deleting wait message: {e}")
+
+    if subscription_status:
+        join_text = "<strong>🔒 Channel Membership Required 🔒</strong>\n\n"
+        join_text += "<strong>To use this bot, please join our official channels:</strong>\n\n"
+
+        for channel in subscription_status:
+            link = await generate_invite_link(channel)
+            if link:
+                join_text += f"👉 <a href='{link}'<strong>Join this channel</strong></a>\n"
+            else:
+                join_text += "👉 Contact admin for invite\n"
+
+        join_text += "\n<strong>After joining, click the button below to verify!</strong>"
+
+        buttons = [
+            [InlineKeyboardButton("✅ I've Joined", callback_data="check_subscription")]
+        ]
+
+        return await message.reply(
+            join_text,
+            disable_web_page_preview=True,
+            reply_markup=InlineKeyboardMarkup(buttons)
+        )
+
+    await message.reply(
+        "<strong>I Am Inline Image Search Bot 📸\n\n"
+        "Search any image instantly\n\n"
+        "Example: <code>@Imagesearchinlinebot image title</code>\n\n"
+        "Works in groups & private chats\n\n"
+        "©️ Created by @JNK_BACKUP</strong>",
+        parse_mode=ParseMode.HTML,
+        disable_web_page_preview=True,
+        reply_markup=InlineKeyboardMarkup(
+            [
+                [
+                    InlineKeyboardButton(
+                        text="🔍 Try Inline Search:",
+                        switch_inline_query_current_chat="kgf"
+                    )
+                ]
+            ]
+        )
+    )
+
+@app.on_callback_query(filters.regex("^check_subscription$"))
+async def check_subscription_callback(client, callback_query):
+    user_id = callback_query.from_user.id
+
+    # Respond to avoid QUERY_ID_INVALID error
+    await callback_query.answer("⏳ Checking your subscription...", show_alert=False)
+
+    subscription_status = await check_user_subscribed(user_id)
+
+    if subscription_status:
+        join_text = "<strong>🔒 Channel Membership Required 🔒</strong>\n\n"
+        join_text += "<strong>To use this bot, please join our official channels:</strong>\n\n"
+
+        for channel in subscription_status:
+            link = await generate_invite_link(channel)
+            if link:
+                join_text += f"👉 <a href='{link}'><strong>Join this channel</strong></a>\n"
+            else:
+                join_text += "👉 Contact admin for invite\n"
+
+        join_text += "\n<strong>After joining, click the button below to verify!</strong>"
+
+        buttons = [
+            [InlineKeyboardButton("✅ I've Joined", callback_data="check_subscription")]
+        ]
+
+        return await callback_query.edit_message_text(
+            join_text,
+            disable_web_page_preview=True,
+            reply_markup=InlineKeyboardMarkup(buttons),
+            parse_mode=ParseMode.HTML
+        )
+
+    # Success: All channels joined
+    await callback_query.edit_message_text(
+        "✅ Thank you for joining!\n"
+        "You can now use the bot normally.\n\n"
+        "Try searching for images by typing:\n"
+        "@Imagesearchinlinebot your_query"
+    )
+
+@app.on_inline_query()
+async def inline_search(client, inline_query: InlineQuery):
+    user_id = inline_query.from_user.id
+    query = inline_query.query.strip()
+
+    # Check subscription
+    subscription_status = await check_user_subscribed(user_id)
+
+    if subscription_status:
+        return await inline_query.answer(
+            [],
+            switch_pm_text="🔒 Join channels First to Search",
+            switch_pm_parameter="start",
+            cache_time=0
+        )
+
+    if not query:
+        return await inline_query.answer(
+            [],
+            switch_pm_text="❓ Type something to search",
+            switch_pm_parameter="start",
+            cache_time=0
+        )
+
+    try:
+        image_urls = await fetch_google_images(query, 50)
+        results = [
+            InlineQueryResultPhoto(
+                id=f"img_{idx}_{random.getrandbits(32):08x}",
+                photo_url=url,
+                thumb_url=url,
+                title=f"Result {idx+1}"
+            )
+            for idx, url in enumerate(image_urls)
+        ]
+
+        await inline_query.answer(
+            results,
+            cache_time=0,  # Always fresh results
+            is_gallery=False,
+            switch_pm_text=f"{len(results)} Results",
+            switch_pm_parameter="start"
+        )
+
+    except Exception as e:
+        logger.error(f"Inline search error: {e}")
+        await inline_query.answer(
+            [],
+            switch_pm_text="❌ Search Failed",
+            switch_pm_parameter="start",
+            cache_time=0
+        )
+
+# ──────────────── Admin Commands ────────────────
+@app.on_message(filters.private & filters.user(OWNER_ID) & filters.command("stats"))
+async def stats_command(client, message: Message):
+    user_count = users_collection.count_documents({})
+    await message.reply(f"📊 Total Users: {user_count}")
+
+@app.on_message(filters.private & filters.user(OWNER_ID) & filters.command("broadcast"))
+async def broadcast_command(client, message: Message):
+    if not message.reply_to_message:
+        return await message.reply("❌ Error: Reply to a message to broadcast")
+
+    users = users_collection.find()
+    total = users_collection.count_documents({})
+    progress = await message.reply(f"📢 Broadcasting to {total} users...")
+
+    success = 0
+    errors = []
+
+    async def send_message(user):
+        nonlocal success
+        try:
+            await message.reply_to_message.copy(user["_id"])
+            success += 1
+        except Exception as e:
+            errors.append(f"{user['_id']}: {str(e)}")
+            if "deleted" in str(e).lower():
+                users_collection.delete_one({"_id": user["_id"]})
+
+    batch_size = 20
+    for i in range(0, total, batch_size):
+        user_batch = list(users.skip(i).limit(batch_size))
+        await asyncio.gather(*[send_message(u) for u in user_batch])
+
+        if i % 100 == 0 or i + batch_size >= total:
+            await progress.edit_text(
+                f"📤 Progress: {i+batch_size}/{total}\n"
+                f"✅ Success: {success}\n"
+                f"❌ Errors: {len(errors)}"
+            )
+
+    await progress.edit_text(
+        f"📣 Broadcast Complete\n\n"
+        f"✅ Sent: {success}/{total}\n"
+        f"❌ Failed: {len(errors)}\n"
+        f"Last errors:\n" + "\n".join(errors[-3:])
+    )
+
+# ──────────────── Web Server ────────────────
+web_app = Flask(__name__)
+
+@web_app.route("/")
+def home():
+    return "Bot is Online"
+
+def run_web_server():
+    web_app.run(host="0.0.0.0", port=8080)
+
+# ──────────────── Startup ────────────────
+if __name__ == "__main__":
+    logger.info("Starting bot...")
+    Thread(target=run_web_server, daemon=True).start()
+    app.run()
