@@ -842,7 +842,7 @@ async def update_movie_post(movie_name):
                 # First, try to get poster if not already fetched
                 poster_data = None
                 if not movie_data.get('poster_fetched', False):
-                    logger.info(f"🎬 Fetching poster for new movie: {movie_name}")
+                    logger.info(f"🎬 Fetching poster for new {'series' if movie_data['tag'] == '#SERIES' else 'movie'}: {movie_name}")
 
                     # Get year from first file or extract from any file
                     year = None
@@ -853,27 +853,20 @@ async def update_movie_post(movie_name):
                                 year = file_data['year']
                                 break
 
-                    # Construct a clean query for Google Images
-                    # Remove brackets and special characters for better search results
-                    clean_movie_name = re.sub(r'[\[\](){}]', '', movie_name).strip()
-                    clean_movie_name = re.sub(r'\s+', ' ', clean_movie_name)  # Normalize spaces
+                    # Determine if it's a series or movie
+                    is_series = movie_data['tag'] == '#SERIES'
                     
-                    # Build search query
-                    if year:
-                        search_query = f"{clean_movie_name} {year} movie poster"
-                    else:
-                        search_query = f"{clean_movie_name} movie poster"
-                    logger.info(f"🔍 Google Images search query: {search_query}")
+                    logger.info(f"🔍 TMDB search for {'TV series' if is_series else 'movie'}: {movie_name} ({year if year else 'No year'})")
 
-                    # Use the new poster search method
-                    poster_data = await image_search.search_google_images_poster(search_query)
+                    # Use TMDB API to search for poster
+                    poster_data = await image_search.search_poster(movie_name, year, is_series)
 
                     if poster_data:
-                        logger.info(f"✅ Successfully fetched poster for: {movie_name}")
+                        logger.info(f"✅ Successfully fetched poster from TMDB for: {movie_name}")
                         # Mark as poster fetched to avoid refetching
                         processor.movie_data[movie_name]['poster_fetched'] = True
                     else:
-                        logger.warning(f"⚠️ Could not fetch poster for: {movie_name}")
+                        logger.warning(f"⚠️ Could not fetch poster from TMDB for: {movie_name}")
 
 
                 # Send message with or without poster
