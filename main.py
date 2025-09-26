@@ -856,7 +856,7 @@ async def update_movie_post(movie_name):
                     # Construct a clean query for Google Images
                     clean_movie_name = movie_name.replace(' ', '+')
                     search_query = f"{clean_movie_name}+{year}+poster" if year else f"{clean_movie_name}+poster"
-                    logger.logger.info(f"🔍 Google Images search query: {search_query}")
+                    logger.info(f"🔍 Google Images search query: {search_query}")
 
                     # Use the new poster search method
                     poster_data = await image_search.search_google_images_poster(search_query)
