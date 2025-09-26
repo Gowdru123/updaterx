@@ -133,35 +133,96 @@ class PosterFetcher:
         try:
             image_urls = []
 
-            # Method 1: Look for data-src attributes (common in Google Images)
+            # Method 1: Look for high-quality image URLs in JSON data (Google Images main results)
+            # This pattern matches the main Google Images results
+            json_pattern_main = re.findall(r'"(https://[^"]+\.(?:jpg|jpeg|png|webp))"[^"]*"(?:[^"]*")*[^"]*"(?:[^"]*")*[^"]*(\d{3,4})[^"]*"(?:[^"]*")*[^"]*(\d{3,4})', html_content)
+            for match in json_pattern_main:
+                url = match[0]
+                if self.is_valid_image_url(url):
+                    # Parse dimensions if available
+                    try:
+                        width = int(match[1]) if match[1] else 0
+                        height = int(match[2]) if match[2] else 0
+                        image_urls.append((url, width, height))
+                    except:
+                        image_urls.append((url, 0, 0))
+
+            # Method 2: Look for data-src attributes (thumbnails and lazy-loaded images)
             data_src_pattern = re.findall(r'data-src="([^"]+)"', html_content)
             for url in data_src_pattern:
-                if self.is_valid_image_url(url):
-                    image_urls.append(url)
+                if self.is_valid_image_url(url) and not any(u[0] == url for u in image_urls):
+                    image_urls.append((url, 0, 0))
 
-            # Method 2: Look for regular src attributes in img tags
+            # Method 3: Look for regular src attributes in img tags
             src_pattern = re.findall(r'<img[^>]+src="([^"]+)"', html_content)
             for url in src_pattern:
-                if self.is_valid_image_url(url) and url not in image_urls:
-                    image_urls.append(url)
+                if self.is_valid_image_url(url) and not any(u[0] == url for u in image_urls):
+                    image_urls.append((url, 0, 0))
 
-            # Method 3: Look for JSON data containing image URLs
+            # Method 4: Look for other JSON patterns
             json_pattern = re.findall(r'\["(https://[^"]+\.(?:jpg|jpeg|png|webp))[^"]*"', html_content)
             for url in json_pattern:
-                if self.is_valid_image_url(url) and url not in image_urls:
-                    image_urls.append(url)
+                if self.is_valid_image_url(url) and not any(u[0] == url for u in image_urls):
+                    image_urls.append((url, 0, 0))
 
-            # Filter and sort by quality indicators
-            filtered_urls = []
-            for url in image_urls[:50]:  # Limit to first 50 URLs
-                # Prefer larger images and movie poster sites
-                if any(indicator in url.lower() for indicator in ['large', 'original', 'poster', 'movie', 'imdb', 'tmdb']):
-                    filtered_urls.insert(0, url)  # Priority URLs at front
+            # Sort and filter URLs by priority
+            priority_urls = []
+            regular_urls = []
+            
+            for url_data in image_urls[:100]:  # Process first 100 URLs
+                url, width, height = url_data
+                url_lower = url.lower()
+                
+                # Calculate priority score
+                priority_score = 0
+                
+                # High priority indicators
+                if any(indicator in url_lower for indicator in ['poster', 'movie', 'film']):
+                    priority_score += 100
+                if any(site in url_lower for indicator in ['imdb.com', 'tmdb.org', 'movieposter']):
+                    priority_score += 50
+                if any(indicator in url_lower for indicator in ['large', 'original', 'hd']):
+                    priority_score += 30
+                
+                # Size-based priority (prefer larger images that are likely posters)
+                if width > 0 and height > 0:
+                    # Prefer portrait orientation (typical for movie posters)
+                    aspect_ratio = width / height
+                    if 0.6 <= aspect_ratio <= 0.8:  # Typical poster aspect ratio
+                        priority_score += 40
+                    elif aspect_ratio <= 1.0:  # Portrait
+                        priority_score += 20
+                    
+                    # Prefer larger images
+                    if width >= 500 and height >= 700:
+                        priority_score += 25
+                    elif width >= 300 and height >= 400:
+                        priority_score += 15
+                
+                # Avoid thumbnails and small images
+                if any(indicator in url_lower for indicator in ['thumb', 'small', 'icon', 'avatar']):
+                    priority_score -= 30
+                
+                # Avoid non-poster content
+                if any(indicator in url_lower for indicator in ['logo', 'banner', 'wallpaper', 'screenshot']):
+                    priority_score -= 20
+                
+                if priority_score >= 30:
+                    priority_urls.append((url, priority_score))
                 else:
-                    filtered_urls.append(url)
-
-            logger.info(f"📸 Extracted {len(filtered_urls)} image URLs from search results")
-            return filtered_urls
+                    regular_urls.append((url, priority_score))
+            
+            # Sort by priority score (highest first)
+            priority_urls.sort(key=lambda x: x[1], reverse=True)
+            regular_urls.sort(key=lambda x: x[1], reverse=True)
+            
+            # Combine lists - priority URLs first
+            final_urls = [url for url, score in priority_urls] + [url for url, score in regular_urls]
+            
+            logger.info(f"📸 Extracted {len(final_urls)} image URLs from search results")
+            logger.info(f"🎯 Found {len(priority_urls)} high-priority poster URLs")
+            
+            return final_urls[:30]  # Return top 30 URLs
 
         except Exception as e:
             logger.error(f"❌ Error extracting image URLs: {e}")
@@ -176,15 +237,22 @@ class PosterFetcher:
         if not url.startswith(('http://', 'https://')):
             return False
 
+        # Skip Google's internal URLs and thumbnails
+        if any(skip in url.lower() for skip in ['google.com/url', 'gstatic.com', 'googleusercontent.com/gadgets']):
+            return False
+
         # Must have image extension or be from known image hosting
         image_extensions = ('.jpg', '.jpeg', '.png', '.webp', '.gif')
-        image_hosts = ('images.', 'img.', 'static.', 'cdn.', 'photo.', 'poster.')
+        image_hosts = ('images.', 'img.', 'static.', 'cdn.', 'photo.', 'poster.', 'media.')
+        movie_sites = ('imdb.com', 'tmdb.org', 'movieposter', 'fanart.tv', 'themoviedb.org')
 
         url_lower = url.lower()
         has_extension = any(ext in url_lower for ext in image_extensions)
         has_image_host = any(host in url_lower for host in image_hosts)
+        has_movie_site = any(site in url_lower for site in movie_sites)
 
-        return has_extension or has_image_host
+        # Prefer URLs from movie-related sites or with clear image indicators
+        return has_extension or has_image_host or has_movie_site
 
     async def download_and_validate_poster(self, session: aiohttp.ClientSession, 
                                          img_url: str, movie_name: str, 
@@ -235,23 +303,42 @@ class PosterFetcher:
             width, height = image.size
 
             # Skip very small images
-            if width < 200 or height < 300:
+            if width < 150 or height < 200:
                 logger.info(f"❌ Image too small: {width}x{height}")
                 return None
 
-            # Skip very wide images (probably not posters)
+            # Calculate aspect ratio
             aspect_ratio = width / height
-            if aspect_ratio > 1.5:  # Too wide for a poster
-                logger.info(f"❌ Image too wide for poster: {width}x{height} (ratio: {aspect_ratio:.2f})")
+
+            # Check if it's a reasonable poster size and aspect ratio
+            poster_score = 0
+            
+            # Preferred poster aspect ratios (portrait)
+            if 0.6 <= aspect_ratio <= 0.8:  # Standard movie poster ratio
+                poster_score += 40
+                logger.info(f"✅ Perfect poster aspect ratio: {width}x{height} (ratio: {aspect_ratio:.2f})")
+            elif aspect_ratio < 1.0:  # Portrait orientation
+                poster_score += 20
+                logger.info(f"✅ Good portrait orientation: {width}x{height} (ratio: {aspect_ratio:.2f})")
+            elif aspect_ratio <= 1.2:  # Nearly square - acceptable
+                poster_score += 10
+                logger.info(f"⚠️ Square-ish image: {width}x{height} (ratio: {aspect_ratio:.2f})")
+            else:
+                logger.info(f"❌ Too wide for poster: {width}x{height} (ratio: {aspect_ratio:.2f})")
                 return None
 
-            # Prefer portrait orientation (typical for movie posters)
-            if height > width:  # Portrait - good for posters
-                logger.info(f"✅ Good poster dimensions: {width}x{height} (portrait)")
-            elif aspect_ratio <= 1.2:  # Nearly square - acceptable
-                logger.info(f"✅ Acceptable poster dimensions: {width}x{height} (square-ish)")
-            else:
-                logger.info(f"⚠️ Unusual poster dimensions: {width}x{height}")
+            # Size bonus
+            if width >= 400 and height >= 600:
+                poster_score += 20
+            elif width >= 300 and height >= 400:
+                poster_score += 10
+
+            # Minimum score required
+            if poster_score < 15:
+                logger.info(f"❌ Image doesn't look like a poster (score: {poster_score})")
+                return None
+
+            logger.info(f"✅ Poster validation passed (score: {poster_score})")
 
             # Resize to desired dimensions (1280x720 as requested)
             # But maintain aspect ratio and crop/pad as needed
@@ -361,13 +448,13 @@ class PosterFetcher:
                         logger.info(f"📸 Found {len(image_urls)} potential poster URLs")
 
                         # Try to download and validate each image
-                        for i, img_url in enumerate(image_urls[:10]):  # Try first 10 images
+                        for i, img_url in enumerate(image_urls[:15]):  # Try first 15 images
                             try:
-                                logger.info(f"🔄 Trying image {i+1}: {img_url[:100]}...")
+                                logger.info(f"🔄 Trying image {i+1}/15: {img_url[:80]}...")
 
                                 # Add delay between image downloads
                                 if i > 0:
-                                    await asyncio.sleep(1)
+                                    await asyncio.sleep(0.5)  # Reduced delay
 
                                 poster_data = await self.download_and_validate_poster(
                                     session, img_url, "", ""
@@ -376,6 +463,8 @@ class PosterFetcher:
                                 if poster_data:
                                     logger.info(f"✅ Successfully found poster for query: {search_query}")
                                     return poster_data
+                                else:
+                                    logger.info(f"❌ Image {i+1} failed validation, trying next...")
 
                             except Exception as e:
                                 logger.warning(f"⚠️ Failed to process image {i+1}: {str(e)[:100]}")
