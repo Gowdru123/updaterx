@@ -8,6 +8,7 @@ import logging
 from datetime import datetime, timedelta
 from config import Config
 import time
+from youtube_fetcher import youtube_fetcher
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
