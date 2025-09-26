@@ -24,7 +24,7 @@ class MessageFormatter:
                     seen_sizes.add(size)
         
         # Create header
-        message = f"🎬 **{movie_name}**\n"
+        message = f"🎬 Title : **{movie_name}**\n"
         message += "=" * 30 + "\n\n"
         
         # Movie/Series details

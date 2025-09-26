@@ -31,17 +31,17 @@ class Config:
     
     # Message Templates
     MOVIE_TEMPLATE = """✨ ᴛɪᴛʟᴇ : <code>{title}</code>
-🎞️ ǫᴜᴀʟɪᴛʏ : <b>{quality}</b>
-🎧 ᴀᴜᴅɪᴏ : <b>{language}</b>
 📅 ʏᴇᴀʀ : <b>{year}</b>
+🎧 ᴀᴜᴅɪᴏ : <b>{language}</b>
+🎞️ ǫᴜᴀʟɪᴛʏ : <b>{quality}</b>
 📊 ꜰɪʟᴇ ꜱɪᴢᴇ : <b>{file_sizes}</b>
 
 📁 ᴛᴏᴛᴀʟ ꜰɪʟᴇꜱ : <b>{total_files}</b>"""
 
     SERIES_TEMPLATE = """✨ ᴛɪᴛʟᴇ : <code>{title}</code>
-🎞️ ǫᴜᴀʟɪᴛʏ : <b>{quality}</b>
-🎧 ᴀᴜᴅɪᴏ : <b>{language}</b>
 📅 ʏᴇᴀʀ : <b>{year}</b>
+🎧 ᴀᴜᴅɪᴏ : <b>{language}</b>
+🎞️ ǫᴜᴀʟɪᴛʏ : <b>{quality}</b>
 📊 ꜰɪʟᴇ ꜱɪᴢᴇ : <b>{file_sizes}</b>
 📺 ᴇᴘɪꜱᴏᴅᴇꜱ : 
 {episodes}
