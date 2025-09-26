@@ -302,38 +302,46 @@ class TMDBPosterFetcher:
             return None
 
     async def search_poster(self, title: str, year: Optional[str] = None, is_series: bool = False) -> Optional[bytes]:
-        """Search for poster (movie or TV series) using TMDB API with Google fallback"""
+        """Search for poster prioritizing Google IMDB search first, then TMDB as fallback"""
         try:
+            # Try Google Images first (prioritizes IMDB results)
+            logger.info(f"🔍 Starting with Google IMDB search for: {title}")
+            poster_data = await self.search_google_poster(title, year, is_series)
+            if poster_data:
+                logger.info(f"✅ Found poster via Google IMDB search for: {title}")
+                return poster_data
+
+            logger.info(f"🔄 Google search failed, trying TMDB for: {title}")
+            
             if is_series:
-                # Try TV series search first
+                # Try TV series search
                 poster_data = await self.search_tv_poster(title, year)
                 if poster_data:
+                    logger.info(f"✅ Found poster via TMDB TV search for: {title}")
                     return poster_data
 
                 # Fallback to movie search
-                logger.info(f"🔄 TV search failed, trying movie search for: {title}")
+                logger.info(f"🔄 TMDB TV search failed, trying TMDB movie search for: {title}")
                 poster_data = await self.search_movie_poster(title, year)
                 if poster_data:
+                    logger.info(f"✅ Found poster via TMDB movie search for: {title}")
                     return poster_data
-                    
-                # Final fallback to Google Images
-                logger.info(f"🔄 TMDB searches failed, trying Google Images for: {title}")
-                return await self.search_google_poster(title, year, is_series=True)
             else:
-                # Try movie search first
+                # Try movie search
                 poster_data = await self.search_movie_poster(title, year)
                 if poster_data:
+                    logger.info(f"✅ Found poster via TMDB movie search for: {title}")
                     return poster_data
 
                 # Fallback to TV series search
-                logger.info(f"🔄 Movie search failed, trying TV search for: {title}")
+                logger.info(f"🔄 TMDB movie search failed, trying TMDB TV search for: {title}")
                 poster_data = await self.search_tv_poster(title, year)
                 if poster_data:
+                    logger.info(f"✅ Found poster via TMDB TV search for: {title}")
                     return poster_data
-                    
-                # Final fallback to Google Images
-                logger.info(f"🔄 TMDB searches failed, trying Google Images for: {title}")
-                return await self.search_google_poster(title, year, is_series=False)
+            
+            logger.warning(f"❌ All poster search methods failed for: {title}")
+            return None
 
         except Exception as e:
             logger.error(f"❌ Error in search_poster: {e}")
