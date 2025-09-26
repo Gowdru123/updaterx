@@ -1,11 +1,7 @@
 
 telethon==1.24.0
 replit==3.3.0
-asyncio
-python-dateutil
-python-dateutil
-replit
-telethon
-python-dateutil
-replit==3.3.0
-telethon==1.24.0
+python-dateutil==2.8.2
+yt-dlp==2023.12.30
+Pillow==10.1.0
+requests==2.31.0

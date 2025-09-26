@@ -355,7 +355,7 @@ class MovieProcessor:
             # Clean token but preserve original case for checking
             original_token = token.lower()
             token_clean = re.sub(r'[@#~\-_()]+', '', original_token)
-            
+
             # Check both cleaned and original token
             for check_token in [token_clean, original_token]:
                 if check_token in extended_languages:
@@ -372,13 +372,13 @@ class MovieProcessor:
         """Extract language from message caption (hashtags and text patterns)"""
         if not caption_text:
             return "N/A"
-            
+
         logger.info(f"🌍 Extracting language from caption: {caption_text}")
-        
+
         # Look for hashtag patterns like #Hindi, #Tamil etc.
         hashtag_pattern = re.findall(r'#(\w+)', caption_text)
         language_tokens = []
-        
+
         # Language mapping for hashtags and text
         lang_mapping = {
             'hindi': 'Hindi', 'english': 'English', 'tamil': 'Tamil', 
@@ -386,7 +386,7 @@ class MovieProcessor:
             'bengali': 'Bengali', 'marathi': 'Marathi', 'gujarati': 'Gujarati',
             'punjabi': 'Punjabi', 'urdu': 'Urdu', 'korean': 'Korean', 'japanese': 'Japanese'
         }
-        
+
         # Check hashtags
         for hashtag in hashtag_pattern:
             hashtag_lower = hashtag.lower()
@@ -395,14 +395,14 @@ class MovieProcessor:
                 if language_name not in language_tokens:
                     language_tokens.append(language_name)
                     logger.info(f"✅ Found caption language: #{hashtag} -> {language_name}")
-        
+
         # Also check for direct language mentions in caption text
         caption_lower = caption_text.lower()
         for lang_key, lang_name in lang_mapping.items():
             if lang_key in caption_lower and lang_name not in language_tokens:
                 language_tokens.append(lang_name)
                 logger.info(f"✅ Found caption text language: {lang_key} -> {lang_name}")
-        
+
         # Check for common patterns like "Tamil", "Hindi" etc.
         text_pattern = re.findall(r'\b(Tamil|Hindi|English|Telugu|Malayalam|Kannada|Bengali|Marathi|Gujarati|Punjabi|Urdu|Korean|Japanese)\b', caption_text, re.IGNORECASE)
         for lang in text_pattern:
@@ -410,7 +410,7 @@ class MovieProcessor:
             if lang_name not in language_tokens:
                 language_tokens.append(lang_name)
                 logger.info(f"✅ Found direct language mention: {lang} -> {lang_name}")
-        
+
         result = ", ".join(language_tokens) if language_tokens else "N/A"
         logger.info(f"🌍 Final caption language: {result}")
         return result
@@ -426,11 +426,11 @@ class MovieProcessor:
 
         # Get quality and file size using token-based method
         quality = self.extract_quality_from_tokens(filename)
-        
+
         # Get language from both filename and caption, prioritize caption
         language_from_filename = self.extract_language_from_tokens(filename)
         language_from_caption = self.extract_language_from_caption(caption_text)
-        
+
         # Combine languages, prioritizing caption
         all_languages = []
         if language_from_caption != "N/A":
@@ -440,7 +440,7 @@ class MovieProcessor:
             for lang in filename_langs:
                 if lang not in all_languages:
                     all_languages.append(lang)
-        
+
         language = ", ".join(all_languages) if all_languages else "N/A"
 
         # Use actual file size from document
@@ -490,7 +490,7 @@ class MovieProcessor:
     def format_movie_message(self, movie_name, data):
         """Format the movie information message using configurable templates"""
         from config import Config
-        
+
         all_qualities = set()
         all_languages = set()
         all_years = set()
@@ -558,7 +558,7 @@ class MovieProcessor:
                 episode_lines.append(f"<b>S{int(season)}:</b> {', '.join(all_ep_parts)}")
 
             episodes_str = "\n".join(episode_lines)
-            
+
             # Use series template 
             message = Config.SERIES_TEMPLATE.format(
                 title=movie_name,
@@ -589,7 +589,7 @@ async def cleanup_old_files():
     try:
         logger.info("🧹 Starting cleanup of files older than 24 hours")
         cutoff_time = datetime.now() - timedelta(hours=24)
-        
+
         movies_to_delete = []
         for movie_name, movie_data in processor.movie_data.items():
             # Check if any file is older than 24 hours
@@ -599,15 +599,15 @@ async def cleanup_old_files():
                 if file_timestamp < cutoff_time:
                     should_delete = True
                     break
-            
+
             if should_delete:
                 movies_to_delete.append(movie_name)
-        
+
         # Delete old movies
         for movie_name in movies_to_delete:
             try:
                 movie_data = processor.movie_data[movie_name]
-                
+
                 # Delete the update channel post
                 if movie_data.get('message_id'):
                     try:
@@ -615,25 +615,25 @@ async def cleanup_old_files():
                         logger.info(f"🗑️ Deleted update post for: {movie_name}")
                     except Exception as e:
                         logger.warning(f"Failed to delete update post for {movie_name}: {e}")
-                
+
                 # Delete from database
                 db_key = f"movie_{movie_name}"
                 if db_key in db:
                     del db[db_key]
                     logger.info(f"🗑️ Deleted from database: {movie_name}")
-                
+
                 # Delete from memory
                 del processor.movie_data[movie_name]
                 logger.info(f"🗑️ Cleaned up old movie: {movie_name}")
-                
+
             except Exception as e:
                 logger.error(f"Error deleting movie {movie_name}: {e}")
-        
+
         if movies_to_delete:
             logger.info(f"🧹 Cleanup completed. Deleted {len(movies_to_delete)} old movies")
         else:
             logger.info("🧹 No old movies to clean up")
-            
+
     except Exception as e:
         logger.error(f"Error during cleanup: {e}")
 
@@ -664,10 +664,10 @@ async def handle_start_command(event):
             # Extract movie name from command
             movie_param = command.split('getfile-', 1)[1]
             movie_name = movie_param.replace('-', ' ')
-            
+
             # Send the movie name as a message that user can copy
             response_message = f"🎬 **Movie Search:**\n\n`{movie_name}`\n\n📋 **Tap to copy the movie name above and send it to search for files!**"
-            
+
             await event.reply(response_message, parse_mode='markdown')
             logger.info(f"Sent movie name for copying: {movie_name}")
     except Exception as e:
@@ -796,7 +796,7 @@ async def update_movie_post(movie_name):
         from telethon.tl.types import KeyboardButtonUrl
         from telethon.tl.types import ReplyKeyboardMarkup
         from telethon import Button
-        
+
         search_link = processor.generate_search_link(movie_name)
         buttons = [[Button.url("🎬 ɢᴇᴛ ꜰɪʟᴇ", search_link)]]
 
@@ -830,35 +830,94 @@ async def update_movie_post(movie_name):
                         'message_id': processor.movie_data[movie_name]['message_id'],
                         'is_photo': processor.movie_data[movie_name]['is_photo'],
                         'tag': processor.movie_data[movie_name]['tag'],
-                        'episodes_by_season': {k: list(v) for k, v in processor.movie_data[movie_name]['episodes_by_season'].items()}
+                        'episodes_by_season': {k: list(v) for k, v in processor.movie_data[movie_name]['episodes_by_season'].items()},
+                        'poster_fetched': processor.movie_data[movie_name].get('poster_fetched', False),
+                        'trailer_url': processor.movie_data[movie_name].get('trailer_url', '')
                     }
                     db[f"movie_{movie_name}"] = movie_data_for_db
                 except Exception as e:
                     logger.error(f"Error updating database: {e}")
         else:
-            # Send new message
-            sent_message = await client.send_message(
-                UPDATE_CHANNEL_ID,
-                message_text,
-                parse_mode='html',
-                buttons=buttons
-            )
-            processor.movie_data[movie_name]['message_id'] = sent_message.id
-            # Update database
+            # Send new message with poster
             try:
-                movie_data_for_db = {
-                    'files': processor.movie_data[movie_name]['files'],
-                    'qualities': list(processor.movie_data[movie_name]['qualities']),
-                    'languages': list(processor.movie_data[movie_name]['languages']),
-                    'message_id': processor.movie_data[movie_name]['message_id'],
-                    'is_photo': processor.movie_data[movie_name]['is_photo'],
-                    'tag': processor.movie_data[movie_name]['tag'],
-                    'episodes_by_season': {k: list(v) for k, v in processor.movie_data[movie_name]['episodes_by_season'].items()}
-                }
-                db[f"movie_{movie_name}"] = movie_data_for_db
+                # First, try to get poster if not already fetched
+                poster_data = None
+                if not movie_data.get('poster_fetched', False):
+                    logger.info(f"🎬 Fetching poster for new movie: {movie_name}")
+
+                    # Get year from first file
+                    year = None
+                    if movie_data['files']:
+                        year = movie_data['files'][0].get('year')
+
+                    # Search for trailer
+                    trailer_info = await youtube_fetcher.search_movie_trailer(movie_name, year)
+
+                    if trailer_info and 'id' in trailer_info:
+                        # Get thumbnail
+                        thumbnail_data = await youtube_fetcher.get_video_thumbnail(trailer_info['id'])
+
+                        if thumbnail_data:
+                            # Process thumbnail
+                            poster_data = await youtube_fetcher.process_thumbnail(thumbnail_data)
+
+                            if poster_data:
+                                logger.info(f"✅ Successfully fetched poster for: {movie_name}")
+                                # Mark as poster fetched to avoid refetching
+                                processor.movie_data[movie_name]['poster_fetched'] = True
+                                processor.movie_data[movie_name]['trailer_url'] = f"https://youtube.com/watch?v={trailer_info['id']}"
+
+                # Send message with or without poster
+                if poster_data:
+                    # Send with poster
+                    sent_message = await client.send_message(
+                        UPDATE_CHANNEL_ID,
+                        message_text,
+                        file=poster_data,
+                        parse_mode='html',
+                        buttons=buttons
+                    )
+                    processor.movie_data[movie_name]['is_photo'] = True
+                    logger.info(f"📸 Created new post with poster for: {movie_name}")
+                else:
+                    # Send without poster
+                    sent_message = await client.send_message(
+                        UPDATE_CHANNEL_ID,
+                        message_text,
+                        parse_mode='html',
+                        buttons=buttons
+                    )
+                    logger.info(f"📝 Created new post without poster for: {movie_name}")
+
+                processor.movie_data[movie_name]['message_id'] = sent_message.id
+
+                # Update database
+                try:
+                    movie_data_for_db = {
+                        'files': processor.movie_data[movie_name]['files'],
+                        'qualities': list(processor.movie_data[movie_name]['qualities']),
+                        'languages': list(processor.movie_data[movie_name]['languages']),
+                        'message_id': processor.movie_data[movie_name]['message_id'],
+                        'is_photo': processor.movie_data[movie_name]['is_photo'],
+                        'tag': processor.movie_data[movie_name]['tag'],
+                        'episodes_by_season': {k: list(v) for k, v in processor.movie_data[movie_name]['episodes_by_season'].items()},
+                        'poster_fetched': processor.movie_data[movie_name].get('poster_fetched', False),
+                        'trailer_url': processor.movie_data[movie_name].get('trailer_url', '')
+                    }
+                    db[f"movie_{movie_name}"] = movie_data_for_db
+                except Exception as e:
+                    logger.error(f"Error updating database: {e}")
+
             except Exception as e:
-                logger.error(f"Error updating database: {e}")
-            logger.info(f"Created new post for: {movie_name}")
+                logger.error(f"Error sending message with poster: {e}")
+                # Fallback to text-only message
+                sent_message = await client.send_message(
+                    UPDATE_CHANNEL_ID,
+                    message_text,
+                    parse_mode='html',
+                    buttons=buttons
+                )
+                processor.movie_data[movie_name]['message_id'] = sent_message.id
 
     except Exception as e:
         logger.error(f"Error updating movie post for {movie_name}: {e}")
@@ -878,7 +937,9 @@ async def load_existing_data():
                     'message_id': data.get('message_id'),
                     'is_photo': data.get('is_photo', False),
                     'tag': data.get('tag', '#MOVIE'),
-                    'episodes_by_season': defaultdict(set, {k: set(v) for k, v in data.get('episodes_by_season', {}).items()})
+                    'episodes_by_season': defaultdict(set, {k: set(v) for k, v in data.get('episodes_by_season', {}).items()}),
+                    'poster_fetched': data.get('poster_fetched', False),
+                    'trailer_url': data.get('trailer_url', '')
                 }
         logger.info(f"Loaded {len(processor.movie_data)} movies from database")
     except Exception as e:
@@ -892,7 +953,7 @@ async def main():
 
         # Load existing data
         await load_existing_data()
-        
+
         # Start cleanup scheduler
         schedule_cleanup()
         logger.info("🧹 Cleanup scheduler started - files will be auto-deleted after 24 hours")
