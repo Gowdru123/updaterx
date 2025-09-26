@@ -854,8 +854,15 @@ async def update_movie_post(movie_name):
                                 break
 
                     # Construct a clean query for Google Images
-                    clean_movie_name = movie_name.replace(' ', '+')
-                    search_query = f"{clean_movie_name}+{year}+poster" if year else f"{clean_movie_name}+poster"
+                    # Remove brackets and special characters for better search results
+                    clean_movie_name = re.sub(r'[\[\](){}]', '', movie_name).strip()
+                    clean_movie_name = re.sub(r'\s+', ' ', clean_movie_name)  # Normalize spaces
+                    
+                    # Build search query
+                    if year:
+                        search_query = f"{clean_movie_name} {year} movie poster"
+                    else:
+                        search_query = f"{clean_movie_name} movie poster"
                     logger.info(f"🔍 Google Images search query: {search_query}")
 
                     # Use the new poster search method

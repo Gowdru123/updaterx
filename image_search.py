@@ -8,6 +8,7 @@ import time
 from PIL import Image
 from typing import Optional, Dict, Any
 import json
+import urllib.parse
 
 logger = logging.getLogger(__name__)
 
@@ -62,10 +63,15 @@ class PosterFetcher:
 
             logger.info(f"🔍 Searching Google Images for: {search_query}")
 
+            # Clean and encode search query properly
+            encoded_query = urllib.parse.quote_plus(search_query)
+
             # Google Images search URL
-            search_url = f"https://www.google.com/search?q={search_query}&tbm=isch&safe=active"
+            search_url = f"https://www.google.com/search?q={encoded_query}&tbm=isch&safe=active"
 
             headers = self.get_random_headers()
+            # Add accept-encoding header to handle compression
+            headers['Accept-Encoding'] = 'gzip, deflate'
 
             async with aiohttp.ClientSession(
                 timeout=aiohttp.ClientTimeout(total=30),
@@ -168,14 +174,14 @@ class PosterFetcher:
             # Sort and filter URLs by priority
             priority_urls = []
             regular_urls = []
-            
+
             for url_data in image_urls[:100]:  # Process first 100 URLs
                 url, width, height = url_data
                 url_lower = url.lower()
-                
+
                 # Calculate priority score
                 priority_score = 0
-                
+
                 # High priority indicators
                 if any(indicator in url_lower for indicator in ['poster', 'movie', 'film']):
                     priority_score += 100
@@ -183,7 +189,7 @@ class PosterFetcher:
                     priority_score += 50
                 if any(indicator in url_lower for indicator in ['large', 'original', 'hd']):
                     priority_score += 30
-                
+
                 # Size-based priority (prefer larger images that are likely posters)
                 if width > 0 and height > 0:
                     # Prefer portrait orientation (typical for movie posters)
@@ -192,36 +198,40 @@ class PosterFetcher:
                         priority_score += 40
                     elif aspect_ratio <= 1.0:  # Portrait
                         priority_score += 20
-                    
+                    elif aspect_ratio <= 1.2:  # Nearly square - acceptable
+                        priority_score += 10
+                    else:
+                        priority_score -= 10 # Penalize wide images
+
                     # Prefer larger images
                     if width >= 500 and height >= 700:
                         priority_score += 25
                     elif width >= 300 and height >= 400:
                         priority_score += 15
-                
+
                 # Avoid thumbnails and small images
                 if any(indicator in url_lower for indicator in ['thumb', 'small', 'icon', 'avatar']):
                     priority_score -= 30
-                
+
                 # Avoid non-poster content
                 if any(indicator in url_lower for indicator in ['logo', 'banner', 'wallpaper', 'screenshot']):
                     priority_score -= 20
-                
+
                 if priority_score >= 30:
                     priority_urls.append((url, priority_score))
                 else:
                     regular_urls.append((url, priority_score))
-            
+
             # Sort by priority score (highest first)
             priority_urls.sort(key=lambda x: x[1], reverse=True)
             regular_urls.sort(key=lambda x: x[1], reverse=True)
-            
+
             # Combine lists - priority URLs first
             final_urls = [url for url, score in priority_urls] + [url for url, score in regular_urls]
-            
+
             logger.info(f"📸 Extracted {len(final_urls)} image URLs from search results")
             logger.info(f"🎯 Found {len(priority_urls)} high-priority poster URLs")
-            
+
             return final_urls[:30]  # Return top 30 URLs
 
         except Exception as e:
@@ -261,6 +271,8 @@ class PosterFetcher:
         try:
             headers = self.get_random_headers()
             headers['Referer'] = 'https://www.google.com/'
+            # Ensure we can handle compressed content
+            headers['Accept-Encoding'] = 'gzip, deflate, br' 
 
             async with session.get(img_url, headers=headers) as response:
                 if response.status != 200:
@@ -271,7 +283,22 @@ class PosterFetcher:
                 if not any(img_type in content_type for img_type in ['image/jpeg', 'image/png', 'image/webp']):
                     return None
 
-                image_data = await response.read()
+                # Handle potential Brotli encoding
+                encoding = response.headers.get('content-encoding', '').lower()
+                if encoding == 'br':
+                    try:
+                        import brotli
+                        compressed_data = await response.read()
+                        image_data = brotli.decompress(compressed_data)
+                    except ImportError:
+                        logger.warning("⚠️ Brotli library not found, cannot decompress Brotli content.")
+                        return None
+                    except Exception as e:
+                        logger.warning(f"⚠️ Failed to decompress Brotli content: {e}")
+                        return None
+                else:
+                    image_data = await response.read()
+
 
                 # Validate image data
                 if len(image_data) < 1024:  # Too small
@@ -312,7 +339,7 @@ class PosterFetcher:
 
             # Check if it's a reasonable poster size and aspect ratio
             poster_score = 0
-            
+
             # Preferred poster aspect ratios (portrait)
             if 0.6 <= aspect_ratio <= 0.8:  # Standard movie poster ratio
                 poster_score += 40
@@ -416,10 +443,15 @@ class PosterFetcher:
 
             self.last_request_time = time.time()
 
+            # Clean and encode search query properly
+            encoded_query = urllib.parse.quote_plus(search_query)
+
             # Google Images search URL
-            search_url = f"https://www.google.com/search?q={search_query}&tbm=isch&safe=active"
+            search_url = f"https://www.google.com/search?q={encoded_query}&tbm=isch&safe=active"
 
             headers = self.get_random_headers()
+            # Add accept-encoding header to handle compression
+            headers['Accept-Encoding'] = 'gzip, deflate'
 
             async with aiohttp.ClientSession(
                 timeout=aiohttp.ClientTimeout(total=30),
