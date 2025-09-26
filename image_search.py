@@ -22,12 +22,15 @@ class TMDBPosterFetcher:
             # Clean movie name for search
             clean_name = self.clean_movie_name_for_search(movie_name)
 
-            logger.info(f"🔍 Searching TMDB for movie: {clean_name}")
+            # Include year in search query if available for better accuracy
+            search_query = f"{clean_name} {year}" if year else clean_name
+            
+            logger.info(f"🔍 Searching TMDB for movie: {search_query}")
 
             # Search for movie
             search_params = {
                 'api_key': self.api_key,
-                'query': clean_name,
+                'query': search_query,
                 'language': 'en-US'
             }
 
@@ -73,12 +76,15 @@ class TMDBPosterFetcher:
             # Clean series name for search
             clean_name = self.clean_movie_name_for_search(series_name)
 
-            logger.info(f"🔍 Searching TMDB for TV series: {clean_name}")
+            # Include year in search query if available for better accuracy
+            search_query = f"{clean_name} {year}" if year else clean_name
+            
+            logger.info(f"🔍 Searching TMDB for TV series: {search_query}")
 
             # Search for TV series
             search_params = {
                 'api_key': self.api_key,
-                'query': clean_name,
+                'query': search_query,
                 'language': 'en-US'
             }
 
