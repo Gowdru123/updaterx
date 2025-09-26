@@ -23,17 +23,39 @@ class YouTubeFetcher:
     async def search_movie_trailer(self, movie_name: str, year: Optional[str] = None) -> Optional[Dict[str, Any]]:
         """Search for official movie trailer on YouTube"""
         try:
-            # Create search query - prioritize official trailers
+            # Clean movie name for better search results
+            clean_name = self.clean_movie_name_for_search(movie_name)
+            
+            # Create comprehensive search queries
             search_terms = [
-                f"{movie_name} official trailer",
-                f"{movie_name} trailer official", 
-                f"{movie_name} movie trailer"
+                f"{clean_name} official trailer",
+                f"{clean_name} trailer official",
+                f"{clean_name} movie trailer",
+                f"{clean_name} film trailer",
+                f"{clean_name} teaser trailer"
             ]
             
+            # Add year variants if available
             if year:
-                search_terms = [f"{term} {year}" for term in search_terms]
+                year_terms = [
+                    f"{clean_name} {year} official trailer",
+                    f"{clean_name} {year} trailer",
+                    f"{clean_name} {year} movie trailer"
+                ]
+                search_terms = year_terms + search_terms
             
-            logger.info(f"🔍 Searching YouTube for: {movie_name}")
+            # Also try original name if cleaning changed it significantly
+            if clean_name.lower() != movie_name.lower():
+                original_terms = [
+                    f"{movie_name} official trailer",
+                    f"{movie_name} trailer"
+                ]
+                if year:
+                    original_terms.insert(0, f"{movie_name} {year} trailer")
+                search_terms.extend(original_terms)
+            
+            logger.info(f"🔍 Searching YouTube for: {clean_name} (year: {year})")
+            logger.info(f"🔍 Search terms: {search_terms[:3]}...")  # Log first 3 terms
             
             for search_query in search_terms:
                 try:
@@ -164,14 +186,34 @@ class YouTubeFetcher:
 
     def clean_movie_name_for_search(self, movie_name: str) -> str:
         """Clean movie name for better YouTube search results"""
-        # Remove common unwanted patterns
-        cleaned = re.sub(r'\b(HDRip|CAMRip|WEBRip|DVDRip|BluRay|BRRip)\b', '', movie_name, flags=re.IGNORECASE)
-        cleaned = re.sub(r'\b(720p|1080p|480p|360p|4K|2160p)\b', '', cleaned, flags=re.IGNORECASE)
-        cleaned = re.sub(r'\b(x264|x265|HEVC|H\.264|H\.265)\b', '', cleaned, flags=re.IGNORECASE)
-        cleaned = re.sub(r'\b(Hindi|Tamil|Telugu|Kannada|Malayalam|English)\b', '', cleaned, flags=re.IGNORECASE)
+        cleaned = movie_name
         
-        # Clean up extra spaces and return
-        return re.sub(r'\s+', ' ', cleaned).strip()
+        # Remove quality indicators
+        cleaned = re.sub(r'\b(HDRip|CAMRip|WEBRip|DVDRip|BluRay|BRRip|HDCAM|TC|TS)\b', '', cleaned, flags=re.IGNORECASE)
+        cleaned = re.sub(r'\b(720p|1080p|480p|360p|4K|2160p|HD|FHD|UHD)\b', '', cleaned, flags=re.IGNORECASE)
+        
+        # Remove codecs and technical terms
+        cleaned = re.sub(r'\b(x264|x265|HEVC|H\.264|H\.265|AAC|AC3|DTS)\b', '', cleaned, flags=re.IGNORECASE)
+        
+        # Remove language indicators (but keep for regional cinema search)
+        # cleaned = re.sub(r'\b(Hindi|Tamil|Telugu|Kannada|Malayalam|English|Dubbed)\b', '', cleaned, flags=re.IGNORECASE)
+        
+        # Remove file size indicators
+        cleaned = re.sub(r'\b\d+(\.\d+)?(GB|MB)\b', '', cleaned, flags=re.IGNORECASE)
+        
+        # Remove brackets and parentheses content that might contain technical info
+        cleaned = re.sub(r'\[[^\]]*\]', '', cleaned)
+        cleaned = re.sub(r'\([^)]*\)', '', cleaned)
+        
+        # Remove special characters and normalize spaces
+        cleaned = re.sub(r'[._\-]+', ' ', cleaned)
+        cleaned = re.sub(r'\s+', ' ', cleaned).strip()
+        
+        # Capitalize properly for better search
+        cleaned = ' '.join(word.capitalize() for word in cleaned.split())
+        
+        logger.info(f"🧹 Cleaned '{movie_name}' -> '{cleaned}' for YouTube search")
+        return cleaned
 
 # Create global instance
 youtube_fetcher = YouTubeFetcher()

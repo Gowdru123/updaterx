@@ -846,11 +846,17 @@ async def update_movie_post(movie_name):
                 if not movie_data.get('poster_fetched', False):
                     logger.info(f"🎬 Fetching poster for new movie: {movie_name}")
 
-                    # Get year from first file
+                    # Get year from first file or extract from any file
                     year = None
                     if movie_data['files']:
-                        year = movie_data['files'][0].get('year')
+                        # Try to get year from any file
+                        for file_data in movie_data['files']:
+                            if file_data.get('year'):
+                                year = file_data['year']
+                                break
 
+                    logger.info(f"🎬 Searching for trailer: '{movie_name}' (year: {year})")
+                    
                     # Search for trailer
                     trailer_info = await youtube_fetcher.search_movie_trailer(movie_name, year)
 
