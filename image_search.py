@@ -125,8 +125,8 @@ class TMDBPosterFetcher:
             logger.error(f"❌ Error searching TMDB for TV series: {e}")
             return None
 
-    async def fetch_google_images(self, query: str, limit: int = 10) -> list:
-        """Fetch images from Google Images search"""
+    async def fetch_google_images(self, query: str, limit: int = 15) -> list:
+        """Fetch images from Google Images search with IMDB prioritization"""
         url = f"https://www.google.com/search?q={query}&tbm=isch&hl=en&safe=off"
         headers = {
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36",
@@ -138,73 +138,161 @@ class TMDBPosterFetcher:
 
         try:
             async with aiohttp.ClientSession() as session:
-                async with session.get(url, headers=headers, timeout=10) as response:
+                async with session.get(url, headers=headers, timeout=15) as response:
                     if response.status != 200:
                         logger.error(f"Google search failed with status: {response.status}")
                         return []
 
                     html = await response.text()
                     soup = BeautifulSoup(html, 'html.parser')
-                    image_urls = []
+                    all_image_urls = []
+                    imdb_urls = []
+                    high_quality_urls = []
+                    regular_urls = []
 
+                    # Extract image URLs from various sources
+                    # Method 1: From script tags containing JSON data
                     for script in soup.find_all('script'):
-                        if script.string:
+                        if script.string and 'data:image' not in script.string:
+                            # Look for high-resolution image URLs
                             matches = re.findall(r'\"(https?://[^\"]+\.(?:jpg|jpeg|png|webp))\"', script.string)
-                            image_urls.extend(match for match in matches if match.startswith('http'))
+                            for match in matches:
+                                if match.startswith('http') and len(match) > 50:  # Filter out very short URLs
+                                    all_image_urls.append(match)
 
+                    # Method 2: From img tags with data-src
                     for img in soup.find_all('img', {'data-src': True}):
-                        image_urls.append(img['data-src'])
+                        src = img.get('data-src')
+                        if src and src.startswith('http') and any(ext in src.lower() for ext in ['.jpg', '.jpeg', '.png', '.webp']):
+                            all_image_urls.append(src)
 
-                    return list(set(image_urls))[:limit]
+                    # Method 3: From img tags with src
+                    for img in soup.find_all('img', {'src': True}):
+                        src = img.get('src')
+                        if src and src.startswith('http') and any(ext in src.lower() for ext in ['.jpg', '.jpeg', '.png', '.webp']):
+                            if 'data:image' not in src and len(src) > 50:  # Skip data URLs and very short URLs
+                                all_image_urls.append(src)
+
+                    # Remove duplicates while preserving order
+                    seen_urls = set()
+                    unique_urls = []
+                    for url in all_image_urls:
+                        if url not in seen_urls:
+                            seen_urls.add(url)
+                            unique_urls.append(url)
+
+                    # Categorize URLs by priority
+                    for url in unique_urls:
+                        url_lower = url.lower()
+                        
+                        # Highest priority: IMDB images
+                        if 'imdb.com' in url_lower or 'media-amazon.com' in url_lower:
+                            imdb_urls.append(url)
+                            logger.info(f"🎯 Found IMDB poster URL: {url[:100]}...")
+                        
+                        # High priority: High-quality indicators
+                        elif any(indicator in url_lower for indicator in ['original', 'large', 'high', 'w1280', 'w780', 'poster']):
+                            high_quality_urls.append(url)
+                        
+                        # Regular URLs
+                        else:
+                            regular_urls.append(url)
+
+                    # Return prioritized list: IMDB first, then high quality, then regular
+                    prioritized_urls = imdb_urls + high_quality_urls + regular_urls
+                    
+                    logger.info(f"📊 Google image search results: {len(imdb_urls)} IMDB, {len(high_quality_urls)} high-quality, {len(regular_urls)} regular")
+                    
+                    return prioritized_urls[:limit]
+
         except Exception as e:
             logger.error(f"❌ Error fetching Google images: {e}")
             return []
 
     async def search_google_poster(self, title: str, year: Optional[str] = None, is_series: bool = False) -> Optional[bytes]:
-        """Search for poster using Google Images as fallback"""
+        """Search for poster using Google Images as fallback with IMDB prioritization"""
         try:
-            # Create search query
             search_type = "tv series" if is_series else "movie"
-            search_query = f"{title} {year} {search_type} poster" if year else f"{title} {search_type} poster"
             
-            logger.info(f"🔍 Searching Google Images for: {search_query}")
+            # Try multiple search queries for better results
+            search_queries = [
+                f"{title} {year} {search_type} poster imdb" if year else f"{title} {search_type} poster imdb",
+                f"{title} {year} poster" if year else f"{title} poster",
+                f"{title} {search_type} poster high resolution" if not year else f"{title} {year} poster high resolution"
+            ]
             
-            # Get image URLs from Google
-            image_urls = await self.fetch_google_images(search_query, limit=5)
-            
-            if not image_urls:
-                logger.warning(f"❌ No images found on Google for: {search_query}")
-                return None
+            for query_idx, search_query in enumerate(search_queries):
+                logger.info(f"🔍 Google search attempt {query_idx + 1}: {search_query}")
+                
+                # Get image URLs from Google
+                image_urls = await self.fetch_google_images(search_query, limit=10)
+                
+                if not image_urls:
+                    logger.warning(f"❌ No images found for query: {search_query}")
+                    continue
 
-            # Try to download and process the first valid image
-            async with aiohttp.ClientSession() as session:
-                for i, url in enumerate(image_urls):
-                    try:
-                        logger.info(f"📥 Trying Google image {i+1}/{len(image_urls)}: {url[:100]}...")
-                        
-                        async with session.get(url, timeout=10) as response:
-                            if response.status != 200:
-                                logger.warning(f"❌ Failed to download image {i+1}, status: {response.status}")
-                                continue
-
-                            image_data = await response.read()
-                            
-                            if len(image_data) < 5000:  # Skip very small images
-                                logger.warning(f"❌ Image {i+1} too small: {len(image_data)} bytes")
-                                continue
-
-                            # Process and resize the image
-                            processed_image = await self.process_and_resize_poster(image_data)
-                            if processed_image:
-                                logger.info(f"✅ Successfully processed Google image for: {title}")
-                                return processed_image
-                            else:
-                                logger.warning(f"❌ Failed to process image {i+1}")
+                # Try to download and process images
+                async with aiohttp.ClientSession() as session:
+                    for i, url in enumerate(image_urls):
+                        try:
+                            # Skip obviously bad URLs
+                            if any(bad in url.lower() for bad in ['favicon', 'logo', 'icon', 'thumb']):
                                 continue
                                 
-                    except Exception as e:
-                        logger.warning(f"❌ Error processing Google image {i+1}: {e}")
-                        continue
+                            url_type = "IMDB" if ('imdb.com' in url.lower() or 'media-amazon.com' in url.lower()) else "Regular"
+                            logger.info(f"📥 Trying {url_type} image {i+1}/{len(image_urls)}: {url[:120]}...")
+                            
+                            # Set timeout based on priority
+                            timeout = 15 if url_type == "IMDB" else 10
+                            
+                            async with session.get(url, timeout=timeout, headers={
+                                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+                                "Referer": "https://www.google.com/"
+                            }) as response:
+                                if response.status != 200:
+                                    logger.warning(f"❌ Failed to download {url_type} image {i+1}, status: {response.status}")
+                                    continue
+
+                                image_data = await response.read()
+                                
+                                # More lenient size check for IMDB images
+                                min_size = 3000 if url_type == "IMDB" else 5000
+                                if len(image_data) < min_size:
+                                    logger.warning(f"❌ {url_type} image {i+1} too small: {len(image_data)} bytes")
+                                    continue
+
+                                # Validate it's actually an image
+                                try:
+                                    from PIL import Image
+                                    test_image = Image.open(io.BytesIO(image_data))
+                                    width, height = test_image.size
+                                    
+                                    # Skip very small or very wide/tall images
+                                    if width < 200 or height < 200 or width/height > 3 or height/width > 3:
+                                        logger.warning(f"❌ {url_type} image {i+1} has bad dimensions: {width}x{height}")
+                                        continue
+                                        
+                                except Exception as img_e:
+                                    logger.warning(f"❌ {url_type} image {i+1} validation failed: {img_e}")
+                                    continue
+
+                                # Process and resize the image
+                                processed_image = await self.process_and_resize_poster(image_data)
+                                if processed_image:
+                                    logger.info(f"✅ Successfully processed {url_type} Google image for: {title}")
+                                    return processed_image
+                                else:
+                                    logger.warning(f"❌ Failed to process {url_type} image {i+1}")
+                                    continue
+                                    
+                        except asyncio.TimeoutError:
+                            logger.warning(f"❌ Timeout downloading image {i+1}")
+                            continue
+                        except Exception as e:
+                            logger.warning(f"❌ Error processing image {i+1}: {e}")
+                            continue
+
+                logger.info(f"❌ No valid images found with query: {search_query}")
 
             logger.warning(f"❌ Failed to get valid poster from Google for: {title}")
             return None
