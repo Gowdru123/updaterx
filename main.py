@@ -485,7 +485,7 @@ class MovieProcessor:
         # Clean movie name for URL - remove special characters, keep spaces as dashes
         clean_name = re.sub(r'[^\w\s-]', '', movie_name)
         clean_name = re.sub(r'\s+', '-', clean_name.strip())
-        return f"https://t.me/{BOT_USERNAME}?start=search-{clean_name}"
+        return f"https://t.me/{BOT_USERNAME}?start=getfile-{clean_name}"
 
     def format_movie_message(self, movie_name, data):
         """Format the movie information message using configurable templates"""
@@ -559,7 +559,7 @@ class MovieProcessor:
 
             episodes_str = "\n".join(episode_lines)
             
-            # Use series template with search link
+            # Use series template 
             message = Config.SERIES_TEMPLATE.format(
                 title=movie_name,
                 quality=quality_str,
@@ -569,9 +569,8 @@ class MovieProcessor:
                 episodes=episodes_str,
                 total_files=file_count
             )
-            message += f"\n\n🔍 <a href='{search_link}'>ꜱᴇᴀʀᴄʜ ᴛʜɪꜱ ᴍᴏᴠɪᴇ</a>"
         else:
-            # Use movie template with search link
+            # Use movie template
             message = Config.MOVIE_TEMPLATE.format(
                 title=movie_name,
                 quality=quality_str,
@@ -580,7 +579,6 @@ class MovieProcessor:
                 file_sizes=file_sizes_str,
                 total_files=file_count
             )
-            message += f"\n\n🔍 <a href='{search_link}'>ꜱᴇᴀʀᴄʜ ᴛʜɪꜱ ᴍᴏᴠɪᴇ</a>"
 
         return message
 
@@ -656,6 +654,24 @@ def schedule_update(movie_name, delay=5):
         delay,
         lambda: asyncio.create_task(update_movie_post(movie_name))
     )
+
+@client.on(events.NewMessage(pattern='/start'))
+async def handle_start_command(event):
+    """Handle /start command with getfile parameter"""
+    try:
+        command = event.message.text
+        if command and 'getfile-' in command:
+            # Extract movie name from command
+            movie_param = command.split('getfile-', 1)[1]
+            movie_name = movie_param.replace('-', ' ')
+            
+            # Send the movie name as a message that user can copy
+            response_message = f"🎬 **Movie Search:**\n\n`{movie_name}`\n\n📋 **Tap to copy the movie name above and send it to search for files!**"
+            
+            await event.reply(response_message, parse_mode='markdown')
+            logger.info(f"Sent movie name for copying: {movie_name}")
+    except Exception as e:
+        logger.error(f"Error handling start command: {e}")
 
 @client.on(events.NewMessage(chats=DB_CHANNEL_ID))
 async def handle_new_file(event):
@@ -776,6 +792,14 @@ async def update_movie_post(movie_name):
         movie_data = processor.movie_data[movie_name]
         message_text = processor.format_movie_message(movie_name, movie_data)
 
+        # Create inline keyboard with get file button
+        from telethon.tl.types import KeyboardButtonUrl
+        from telethon.tl.types import ReplyKeyboardMarkup
+        from telethon import Button
+        
+        search_link = processor.generate_search_link(movie_name)
+        buttons = [[Button.url("🎬 ɢᴇᴛ ꜰɪʟᴇ", search_link)]]
+
         if movie_data['message_id']:
             # Edit existing message
             try:
@@ -783,7 +807,8 @@ async def update_movie_post(movie_name):
                     UPDATE_CHANNEL_ID,
                     movie_data['message_id'],
                     message_text,
-                    parse_mode='html'
+                    parse_mode='html',
+                    buttons=buttons
                 )
                 logger.info(f"Updated existing post for: {movie_name}")
             except Exception as e:
@@ -792,7 +817,8 @@ async def update_movie_post(movie_name):
                 sent_message = await client.send_message(
                     UPDATE_CHANNEL_ID,
                     message_text,
-                    parse_mode='html'
+                    parse_mode='html',
+                    buttons=buttons
                 )
                 processor.movie_data[movie_name]['message_id'] = sent_message.id
                 # Update database
@@ -814,7 +840,8 @@ async def update_movie_post(movie_name):
             sent_message = await client.send_message(
                 UPDATE_CHANNEL_ID,
                 message_text,
-                parse_mode='html'
+                parse_mode='html',
+                buttons=buttons
             )
             processor.movie_data[movie_name]['message_id'] = sent_message.id
             # Update database
