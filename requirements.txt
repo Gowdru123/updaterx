@@ -6,3 +6,6 @@ python-dateutil
 python-dateutil
 replit
 telethon
+python-dateutil
+replit==3.3.0
+telethon==1.24.0
