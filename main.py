@@ -5,8 +5,9 @@ from collections import defaultdict
 from telethon import TelegramClient, events
 from replit import db
 import logging
-from datetime import datetime
+from datetime import datetime, timedelta
 from config import Config
+import time
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -64,7 +65,7 @@ IGNORE_WORDS = {
     "apple", "hoichoi", "sunnxt", "viki", "rm_movie_flix", "rm", "movie", "flix",
     "hq", "hdrip", "JNK_BACKUP", "jnk", "backup", "dd", "moviez", "shetty", "moviez2",
     "thedd", "snxt", "h", "264", "aac2", "0", "adda", "AddaFiles",
-"files"}
+"files",""}
 
 CAPTION_LANGUAGES = {
     "hin": "Hindi", "hindi": "Hindi",
@@ -246,11 +247,10 @@ class MovieProcessor:
             'dvdscr': 'DVDScr', 'dvdrip': 'DVDRip', 'predvd': 'PreDVD',
             'webrip': 'WEBRip', 'web-dl': 'WEB-DL', 'webdl': 'WEBRip', 'web': 'WEB',
             'tvrip': 'TVRip', 'hdtv': 'HDTV', 'bluray': 'BluRay', 'brrip': 'BRRip',
-            'bdrip': 'BDRip', 'hevc': 'HEVC', 'hdrip': 'HDRip', 'hq': 'HQ',
+            'bdrip': 'BDRip', 'hevc': 'HEVC', 'hdrip': 'HDRip',
             '360p': '360p', '480p': '480p', '720p': '720p', '1080p': '1080p',
             '2160p': '2160p', '4k': '4K', '1440p': '1440p', '540p': '540p',
-            '240p': '240p', '140p': '140p', 'uhd': 'UHD', 'fhd': 'FHD', 'hd': 'HD',
-            'avc': 'AVC', 'h264': 'H.264', 'h265': 'H.265', 'x264': 'x264', 'x265': 'x265'
+            '240p': '240p', '140p': '140p', 'uhd': 'UHD', 'fhd': 'FHD', 'hd': 'HD'
         }
 
         for token in tokens:
@@ -480,6 +480,13 @@ class MovieProcessor:
         simple_name = '-'.join(words) if words else 'Movie'
         return f"https://t.me/{BOT_USERNAME}?start=getfile-{simple_name}"
 
+    def generate_search_link(self, movie_name):
+        """Generate search link that auto-fills movie name in bot"""
+        # Clean movie name for URL - remove special characters, keep spaces as dashes
+        clean_name = re.sub(r'[^\w\s-]', '', movie_name)
+        clean_name = re.sub(r'\s+', '-', clean_name.strip())
+        return f"https://t.me/{BOT_USERNAME}?start=search-{clean_name}"
+
     def format_movie_message(self, movie_name, data):
         """Format the movie information message using configurable templates"""
         from config import Config
@@ -513,6 +520,9 @@ class MovieProcessor:
         quality_str = ", ".join(sorted(all_qualities)) if all_qualities else "N/A"
         language_str = ", ".join(sorted(all_languages)) if all_languages else "N/A"
         file_sizes_str = " | ".join(all_file_sizes) if all_file_sizes else "N/A"
+
+        # Generate search link
+        search_link = self.generate_search_link(movie_name)
 
         if primary_tag == "#SERIES" and episodes_by_season:
             # Format episodes for series
@@ -549,7 +559,7 @@ class MovieProcessor:
 
             episodes_str = "\n".join(episode_lines)
             
-            # Use series template
+            # Use series template with search link
             message = Config.SERIES_TEMPLATE.format(
                 title=movie_name,
                 quality=quality_str,
@@ -559,8 +569,9 @@ class MovieProcessor:
                 episodes=episodes_str,
                 total_files=file_count
             )
+            message += f"\n\n🔍 <a href='{search_link}'>ꜱᴇᴀʀᴄʜ ᴛʜɪꜱ ᴍᴏᴠɪᴇ</a>"
         else:
-            # Use movie template
+            # Use movie template with search link
             message = Config.MOVIE_TEMPLATE.format(
                 title=movie_name,
                 quality=quality_str,
@@ -569,10 +580,70 @@ class MovieProcessor:
                 file_sizes=file_sizes_str,
                 total_files=file_count
             )
+            message += f"\n\n🔍 <a href='{search_link}'>ꜱᴇᴀʀᴄʜ ᴛʜɪꜱ ᴍᴏᴠɪᴇ</a>"
 
         return message
 
 processor = MovieProcessor()
+
+async def cleanup_old_files():
+    """Delete movie files and posts older than 24 hours"""
+    try:
+        logger.info("🧹 Starting cleanup of files older than 24 hours")
+        cutoff_time = datetime.now() - timedelta(hours=24)
+        
+        movies_to_delete = []
+        for movie_name, movie_data in processor.movie_data.items():
+            # Check if any file is older than 24 hours
+            should_delete = False
+            for file_info in movie_data['files']:
+                file_timestamp = datetime.fromisoformat(file_info['timestamp'])
+                if file_timestamp < cutoff_time:
+                    should_delete = True
+                    break
+            
+            if should_delete:
+                movies_to_delete.append(movie_name)
+        
+        # Delete old movies
+        for movie_name in movies_to_delete:
+            try:
+                movie_data = processor.movie_data[movie_name]
+                
+                # Delete the update channel post
+                if movie_data.get('message_id'):
+                    try:
+                        await client.delete_messages(UPDATE_CHANNEL_ID, movie_data['message_id'])
+                        logger.info(f"🗑️ Deleted update post for: {movie_name}")
+                    except Exception as e:
+                        logger.warning(f"Failed to delete update post for {movie_name}: {e}")
+                
+                # Delete from database
+                db_key = f"movie_{movie_name}"
+                if db_key in db:
+                    del db[db_key]
+                    logger.info(f"🗑️ Deleted from database: {movie_name}")
+                
+                # Delete from memory
+                del processor.movie_data[movie_name]
+                logger.info(f"🗑️ Cleaned up old movie: {movie_name}")
+                
+            except Exception as e:
+                logger.error(f"Error deleting movie {movie_name}: {e}")
+        
+        if movies_to_delete:
+            logger.info(f"🧹 Cleanup completed. Deleted {len(movies_to_delete)} old movies")
+        else:
+            logger.info("🧹 No old movies to clean up")
+            
+    except Exception as e:
+        logger.error(f"Error during cleanup: {e}")
+
+def schedule_cleanup():
+    """Schedule periodic cleanup every hour"""
+    loop = asyncio.get_event_loop()
+    loop.call_later(3600, lambda: asyncio.create_task(cleanup_old_files()))
+    loop.call_later(3600, schedule_cleanup)  # Schedule next cleanup
 
 def schedule_update(movie_name, delay=5):
     """Schedule a delayed update to batch multiple files together"""
@@ -794,6 +865,10 @@ async def main():
 
         # Load existing data
         await load_existing_data()
+        
+        # Start cleanup scheduler
+        schedule_cleanup()
+        logger.info("🧹 Cleanup scheduler started - files will be auto-deleted after 24 hours")
 
         # Keep the bot running
         await client.run_until_disconnected()
