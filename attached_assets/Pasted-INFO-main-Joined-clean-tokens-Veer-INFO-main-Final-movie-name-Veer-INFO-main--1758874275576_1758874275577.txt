@@ -1,0 +1,48 @@
+INFO:__main__:🎬 Joined clean tokens: 'Veer'
+INFO:__main__:✨ Final movie name: 'Veer'
+INFO:__main__:🎬 Extracted movie name: 'Veer'
+INFO:__main__:📊 Media info: Quality=N/A, Language=Telugu, Tag=#MOVIE
+INFO:__main__:🔒 Acquiring lock for movie: Veer
+INFO:__main__:✅ Lock acquired for movie: Veer
+INFO:__main__:📝 Creating file data entry for: @RM_Movie_Flix_Legally_Veer_2024_Telugu TRUE_W_part002.mkv
+INFO:__main__:📂 Added file to movie data. Total files for 'Veer': 1
+INFO:__main__:🌍 Updated languages for 'Veer': ['Telugu']
+INFO:__main__:🏷️ Set tag for 'Veer': #MOVIE
+INFO:__main__:💾 Saving movie data to database for: Veer
+INFO:__main__:✅ Successfully saved to database: movie_Veer
+INFO:__main__:✅ Successfully processed file: @RM_Movie_Flix_Legally_Veer_2024_Telugu TRUE_W_part002.mkv for movie: Veer
+INFO:__main__:⏰ Scheduling update for 'Veer' with 5 second delay
+INFO:__main__:🆕 New message received in DB channel
+INFO:__main__:📁 Processing file: @RM_Movie_Flix_Legally_Veer_2024_Telugu TRUE_W_part003.mkv
+INFO:__main__:🔄 Starting media info extraction...
+INFO:__main__:🔍 Starting movie name extraction for: @RM_Movie_Flix_Legally_Veer_2024_Telugu TRUE_W_part003.mkv
+INFO:__main__:📝 After removing extension: @RM_Movie_Flix_Legally_Veer_2024_Telugu TRUE_W_part003
+INFO:__main__:🔤 Tokens after splitting: ['@RM', 'Movie', 'Flix', 'Legally', 'Veer', '2024', 'Telugu', 'TRUE', 'W', 'part003']
+INFO:__main__:🔍 Processing token 1: '@RM'
+INFO:__main__:🧹 Removed special chars (@#~-_): '@RM' -> 'RM'
+INFO:__main__:❌ Token 'RM' found in ignore list, removing
+INFO:__main__:🔍 Processing token 2: 'Movie'
+INFO:__main__:❌ Token 'Movie' found in ignore list, removing
+INFO:__main__:🔍 Processing token 3: 'Flix'
+INFO:__main__:❌ Token 'Flix' found in ignore list, removing
+INFO:__main__:🔍 Processing token 4: 'Legally'
+INFO:__main__:❌ Token 'Legally' found in ignore list, removing
+INFO:__main__:🔍 Processing token 5: 'Veer'
+INFO:__main__:✅ Token 'Veer' added to clean list
+INFO:__main__:🔍 Processing token 6: '2024'
+INFO:__main__:📅 Found year '2024', stopping processing
+INFO:__main__:🎬 Joined clean tokens: 'Veer'
+INFO:__main__:✨ Final movie name: 'Veer'
+INFO:__main__:🎬 Extracted movie name: 'Veer'
+INFO:__main__:📊 Media info: Quality=N/A, Language=Telugu, Tag=#MOVIE
+INFO:__main__:🔒 Acquiring lock for movie: Veer
+INFO:__main__:✅ Lock acquired for movie: Veer
+INFO:__main__:📝 Creating file data entry for: @RM_Movie_Flix_Legally_Veer_2024_Telugu TRUE_W_part003.mkv
+INFO:__main__:📂 Added file to movie data. Total files for 'Veer': 2
+INFO:__main__:🌍 Updated languages for 'Veer': ['Telugu']
+INFO:__main__:🏷️ Set tag for 'Veer': #MOVIE
+INFO:__main__:💾 Saving movie data to database for: Veer
+INFO:__main__:✅ Successfully saved to database: movie_Veer
+INFO:__main__:✅ Successfully processed file: @RM_Movie_Flix_Legally_Veer_2024_Telugu TRUE_W_part003.mkv for movie: Veer
+INFO:__main__:⏰ Scheduling update for 'Veer' with 5 second delay
+INFO:__main__:Created new post for: Veer

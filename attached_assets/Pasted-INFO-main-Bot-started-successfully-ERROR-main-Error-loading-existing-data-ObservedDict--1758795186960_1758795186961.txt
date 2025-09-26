@@ -1,0 +1,22 @@
+INFO:__main__:Bot started successfully!
+ERROR:__main__:Error loading existing data: 'ObservedDict' object has no attribute 'copy'
+INFO:__main__:Processed file: @JNK_BACKUP -Bhikshuka 2 (2023) Kannada HD 500MB.mkv for movie: Bhikshuka 2
+INFO:__main__:Processed file: @JNK_BACKUP -Bhikshuka 2 (2023) Kannada HD 700MB.mkv for movie: Bhikshuka 2
+INFO:__main__:Processed file: @JNK_BACKUP -Bhikshuka 2 (2023) Kannada HD 1GB.mkv for movie: Bhikshuka 2
+INFO:__main__:Processed file: @JNK_BACKUP -Bhikshuka 2 (2023) Kannada HD 1.4GB.mkv for movie: Bhikshuka 2
+INFO:__main__:Created new post for: Bhikshuka 2
+INFO:__main__:Processed file: @JNK_BACKUP -Marco (2024) Kannada HD 400MB.mkv for movie: Marco
+INFO:__main__:Processed file: @JNK_BACKUP -Marco (2024) Kannada HD 700MB.mkv for movie: Marco
+INFO:__main__:Processed file: @JNK_BACKUP -Marco (2024) Kannada HD 900MB.mkv for movie: Marco
+INFO:__main__:Processed file: @JNK_BACKUP -Marco (2024) Kannada HD 1.6GB.mkv for movie: Marco
+INFO:__main__:Created new post for: Marco
+INFO:__main__:Processed file: @JNK_BACKUP - - House of Guinness S01E08.mkv for movie: House of Guinness S01E08
+INFO:__main__:Created new post for: House of Guinness S01E08
+INFO:__main__:Processed file: @JNK_BACKUP - - House of Guinness S01E01.mkv for movie: House of Guinness S01E08
+INFO:__main__:Processed file: @JNK_BACKUP - - House of Guinness S01E02.mkv for movie: House of Guinness S01E08
+INFO:__main__:Processed file: @JNK_BACKUP - - House of Guinness S01E03.mkv for movie: House of Guinness S01E08
+INFO:__main__:Processed file: @JNK_BACKUP - - House of Guinness S01E04.mkv for movie: House of Guinness S01E08
+INFO:__main__:Processed file: @JNK_BACKUP - - House of Guinness S01E05.mkv for movie: House of Guinness S01E08
+INFO:__main__:Processed file: @JNK_BACKUP - - House of Guinness S01E06.mkv for movie: House of Guinness S01E08
+INFO:__main__:Processed file: @JNK_BACKUP - - House of Guinness S01E07.mkv for movie: House of Guinness S01E08
+WARNING:__main__:Failed to edit message, sending new one: The specified message ID is invalid or you can't do that operation on such message (caused by EditMessageRequest)
