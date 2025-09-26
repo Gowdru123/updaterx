@@ -8,7 +8,7 @@ import logging
 from datetime import datetime, timedelta
 from config import Config
 import time
-from youtube_fetcher import youtube_fetcher
+from image_search import image_search
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -859,7 +859,7 @@ async def update_movie_post(movie_name):
                     logger.logger.info(f"🔍 Google Images search query: {search_query}")
 
                     # Use the new poster search method
-                    poster_data = await youtube_fetcher.search_google_images_poster(search_query)
+                    poster_data = await image_search.search_google_images_poster(search_query)
 
                     if poster_data:
                         logger.info(f"✅ Successfully fetched poster for: {movie_name}")
