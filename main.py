@@ -6,6 +6,7 @@ from telethon import TelegramClient, events
 from replit import db
 import logging
 from datetime import datetime
+from config import Config
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -62,8 +63,8 @@ IGNORE_WORDS = {
     "primevideo", "hotstar", "zee5", "jio", "jhs", "aha", "hbo", "paramount",
     "apple", "hoichoi", "sunnxt", "viki", "rm_movie_flix", "rm", "movie", "flix",
     "hq", "hdrip", "JNK_BACKUP", "jnk", "backup", "dd", "moviez", "shetty", "moviez2",
-    "thedd", "snxt", "h", "264", "aac2", "0"
-}
+    "thedd", "snxt", "h", "264", "aac2", "0", "adda", "AddaFiles",
+"files"}
 
 CAPTION_LANGUAGES = {
     "hin": "Hindi", "hindi": "Hindi",
@@ -480,13 +481,16 @@ class MovieProcessor:
         return f"https://t.me/{BOT_USERNAME}?start=getfile-{simple_name}"
 
     def format_movie_message(self, movie_name, data):
-        """Format the movie information message"""
+        """Format the movie information message using configurable templates"""
+        from config import Config
+        
         all_qualities = set()
         all_languages = set()
         all_years = set()
         all_file_sizes = []
         episodes_by_season = defaultdict(set)
 
+        # Process all files to collect complete information
         for file in data['files']:
             if file.get("quality") and file["quality"] != "N/A":
                 all_qualities.update(q.strip() for q in file["quality"].split(",") if q.strip())
@@ -502,38 +506,16 @@ class MovieProcessor:
                 episodes_by_season[season].add(episode)
 
         file_count = len(data['files'])
-        download_link = self.generate_download_link(movie_name)
         primary_tag = data.get('tag', '#MOVIE')
 
-        # Get the most common or first year (don't show if not found)
-        year_str = sorted(all_years)[0] if all_years else None
-        quality_str = ", ".join(sorted(all_qualities)) if all_qualities else None
-        language_str = ", ".join(sorted(all_languages)) if all_languages else None
-        file_sizes_str = " | ".join(all_file_sizes) if all_file_sizes else None
+        # Prepare template variables
+        year_str = sorted(all_years)[0] if all_years else "N/A"
+        quality_str = ", ".join(sorted(all_qualities)) if all_qualities else "N/A"
+        language_str = ", ".join(sorted(all_languages)) if all_languages else "N/A"
+        file_sizes_str = " | ".join(all_file_sizes) if all_file_sizes else "N/A"
 
-        # Format message - only show available information
-        message = f"🎬 **{movie_name}**\n"
-        
-        # Only add year if found
-        if year_str:
-            message += f"📅 **{year_str}**\n"
-        
-        # Only add language if found
-        if language_str:
-            message += f"🌍 **{language_str}**\n"
-        
-        # Only add quality if found
-        if quality_str:
-            message += f"🎯 **{quality_str}**\n"
-        
-        # Only add file sizes if found
-        if file_sizes_str:
-            message += f"📊 **File Sizes:** {file_sizes_str}\n"
-        
-        message += f"\n📁 **Total Files:** {file_count}\n"
-
-        # Add episode information for series
-        if episodes_by_season and primary_tag == "#SERIES":
+        if primary_tag == "#SERIES" and episodes_by_season:
+            # Format episodes for series
             episode_lines = []
             for season, episodes in sorted(episodes_by_season.items(), key=lambda x: int(x[0])):
                 singles = []
@@ -563,14 +545,30 @@ class MovieProcessor:
                     collapsed.append(str(start) if start == end else f"{start}-{end}")
 
                 all_ep_parts = collapsed + sorted(ranges, key=lambda s: int(s.split("-")[0]))
-                episode_lines.append(f"S{int(season)}: {', '.join(all_ep_parts)}")
+                episode_lines.append(f"<b>S{int(season)}:</b> {', '.join(all_ep_parts)}")
 
-            epi_str = "\n".join(episode_lines)
-            if epi_str:
-                message += f"📺 **Episodes:** \n{epi_str}\n"
-
-        message += f"\n📥 **Download:** [ɢᴇᴛ ғɪʟᴇs]({download_link})\n\n"
-        message += f"{primary_tag} #{movie_name.replace(' ', '_')}"
+            episodes_str = "\n".join(episode_lines)
+            
+            # Use series template
+            message = Config.SERIES_TEMPLATE.format(
+                title=movie_name,
+                quality=quality_str,
+                language=language_str,
+                year=year_str,
+                file_sizes=file_sizes_str,
+                episodes=episodes_str,
+                total_files=file_count
+            )
+        else:
+            # Use movie template
+            message = Config.MOVIE_TEMPLATE.format(
+                title=movie_name,
+                quality=quality_str,
+                language=language_str,
+                year=year_str,
+                file_sizes=file_sizes_str,
+                total_files=file_count
+            )
 
         return message
 
@@ -622,13 +620,14 @@ async def handle_new_file(event):
         async with lock:
             logger.info(f"✅ Lock acquired for movie: {movie_name}")
 
-            # Check if file already exists by filename
-            existing_files = [f['filename'] for f in processor.movie_data[movie_name]['files']]
-            if filename in existing_files:
-                logger.info(f"⚠️ File already exists in database: {filename}")
+            # Create unique identifier using filename + file size for better duplicate detection
+            file_identifier = f"{filename}_{file_size_bytes}"
+            existing_identifiers = [f"{f['filename']}_{f.get('file_size_bytes', 0)}" for f in processor.movie_data[movie_name]['files']]
+            if file_identifier in existing_identifiers:
+                logger.info(f"⚠️ File with same name and size already exists: {filename}")
                 return
 
-            # Check if file already exists by file_id to prevent duplicates
+            # Also check by file_id to prevent exact duplicates
             existing_file_ids = [f['file_id'] for f in processor.movie_data[movie_name]['files']]
             if event.message.document.id in existing_file_ids:
                 logger.info(f"⚠️ File with same file_id already exists: {event.message.document.id}")
@@ -641,6 +640,7 @@ async def handle_new_file(event):
                 'processed': media_info['processed'],
                 'message_id': event.message.id,
                 'file_id': event.message.document.id,
+                'file_size_bytes': file_size_bytes,
                 'timestamp': datetime.now().isoformat(),
                 'quality': media_info['quality'],
                 'language': media_info['language'],
@@ -712,7 +712,7 @@ async def update_movie_post(movie_name):
                     UPDATE_CHANNEL_ID,
                     movie_data['message_id'],
                     message_text,
-                    parse_mode='markdown'
+                    parse_mode='html'
                 )
                 logger.info(f"Updated existing post for: {movie_name}")
             except Exception as e:
@@ -721,7 +721,7 @@ async def update_movie_post(movie_name):
                 sent_message = await client.send_message(
                     UPDATE_CHANNEL_ID,
                     message_text,
-                    parse_mode='markdown'
+                    parse_mode='html'
                 )
                 processor.movie_data[movie_name]['message_id'] = sent_message.id
                 # Update database
@@ -743,7 +743,7 @@ async def update_movie_post(movie_name):
             sent_message = await client.send_message(
                 UPDATE_CHANNEL_ID,
                 message_text,
-                parse_mode='markdown'
+                parse_mode='html'
             )
             processor.movie_data[movie_name]['message_id'] = sent_message.id
             # Update database
