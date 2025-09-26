@@ -56,7 +56,7 @@ IGNORE_WORDS = {
     "horror", "music", "musical", "mystery", "romance", "sci-fi", "sport",
     "thriller", "war", "western", "hdcam", "hdtc", "camrip", "ts", "tc",
     "telesync", "dvdscr", "dvdrip", "predvd", "webrip", "web-dl", "tvrip",
-    "hdtv", "web dl", "webdl", "bluray", "brrip", "bdrip", "360p", "480p",
+    "hdtv", "web", "dl", "webdl", "bluray", "brrip", "bdrip", "360p", "480p",
     "720p", "1080p", "2160p", "4k", "1440p", "540p", "240p", "140p", "hevc",
     "hdrip", "hin", "hindi", "tam", "tamil", "kan", "kannada", "tel", "telugu",
     "mal", "malayalam", "eng", "english", "pun", "punjabi", "ben", "bengali",
@@ -64,9 +64,12 @@ IGNORE_WORDS = {
     "japanese", "nf", "netflix", "sonyliv", "sony", "sliv", "amzn", "prime",
     "primevideo", "hotstar", "zee5", "jio", "jhs", "aha", "hbo", "paramount",
     "apple", "hoichoi", "sunnxt", "viki", "rm_movie_flix", "rm", "movie", "flix",
-    "hq", "hdrip", "JNK_BACKUP", "jnk", "backup", "dd", "moviez", "shetty", "moviez2",
-    "thedd", "snxt", "h", "264", "aac2", "0", "adda", "AddaFiles",
-"files",""}
+    "hq", "hdrip", "jnk_backup", "jnk", "backup", "dd", "moviez", "shetty", "moviez2",
+    "shettymoviez", "shettymoviez2", "thedd", "snxt", "h", "264", "aac2", "0", "adda", 
+    "addafiles", "files", "cinema", "films", "theater", "print", "movies", "we", "ds4k",
+    "10bit", "bit", "x264", "x265", "cam", "esub", "msub", "org", "original", "dual",
+    "multi", "dubbed", "subtitled", "uhd", "fhd", "hd", "quality", "rip", "cam", "tc",
+    "~", "-", "_", ".", "(", ")", "[", "]", "{", "}", ""}
 
 CAPTION_LANGUAGES = {
     "hin": "Hindi", "hindi": "Hindi",
@@ -116,49 +119,56 @@ class MovieProcessor:
         logger.info(f"📝 After removing extension: {name_without_ext}")
 
         # Step 2: Split into tokens using multiple delimiters
-        tokens = re.split(r'[\s\-_\.]+', name_without_ext)
+        tokens = re.split(r'[\s\-_\.~]+', name_without_ext)
         tokens = [token for token in tokens if token]  # Remove empty tokens
         logger.info(f"🔤 Tokens after splitting: {tokens}")
 
-        # Step 3: Process each token - exact match check for bad words
+        # Step 3: Enhanced filtering - remove channel names and bad words
         clean_tokens = []
         ignore_words_lower = {word.lower() for word in IGNORE_WORDS}
+        
+        # Add more channel name patterns to ignore
+        channel_patterns = [
+            r'^@.*',  # Any token starting with @
+            r'.*moviez.*', r'.*flix.*', r'.*cinema.*', r'.*films.*',
+            r'shetty.*', r'.*backup.*', r'.*files.*', r'.*adda.*',
+            r'rm_.*', r'.*_rm', r'jnk.*', r'.*dd.*moviez.*',
+            r'the.*dd.*', r'.*print.*', r'.*theater.*'
+        ]
 
-        # First pass: Remove channel name tokens completely
-        filtered_tokens = []
-        for token in tokens:
-            # Skip @THE_DD_MOVIEZ style channel names entirely
-            if token.startswith('@') and any(bad_word in token.lower() for bad_word in ['the_dd_moviez', 'dd_moviez', 'rm_movie_flix', 'movie_flix']):
-                logger.info(f"❌ Skipping channel name token: '{token}'")
-                continue
-            # Skip standalone bad words that are exact matches after cleaning special chars
-            token_cleaned_temp = re.sub(r'[@#~\-_()]+', '', token).lower()
-            if token_cleaned_temp in IGNORE_WORDS:
-                logger.info(f"❌ Skipping bad word token: '{token}' (cleaned: '{token_cleaned_temp}')")
-                continue
-            filtered_tokens.append(token)
-
-        logger.info(f"🧹 After filtering channel names: {filtered_tokens}")
-
-        # Second pass: Process remaining tokens
-        for i, token in enumerate(filtered_tokens):
+        for i, token in enumerate(tokens):
             logger.info(f"🔍 Processing token {i+1}: '{token}'")
 
-            # Remove special characters @ # ~ - from token
-            original_token = token
-            token_cleaned = re.sub(r'[@#~\-_]+', '', token)
-            if token_cleaned != original_token:
-                logger.info(f"🧹 Removed special chars (@#~-_): '{original_token}' -> '{token_cleaned}'")
+            # Remove special characters from token for checking
+            token_cleaned = re.sub(r'[@#~\-_()]+', '', token)
+            token_lower = token_cleaned.lower()
 
             # Skip empty tokens after cleaning
             if not token_cleaned:
                 logger.info(f"❌ Token became empty after cleaning, skipping")
                 continue
 
+            # Check if token matches channel name patterns
+            is_channel_name = False
+            for pattern in channel_patterns:
+                if re.match(pattern, token_lower):
+                    logger.info(f"❌ Token '{token}' matches channel pattern '{pattern}', removing")
+                    is_channel_name = True
+                    break
+            
+            if is_channel_name:
+                continue
+
             # Check exact match with ignore words (case insensitive)
-            token_lower = token_cleaned.lower()
             if token_lower in ignore_words_lower:
                 logger.info(f"❌ Token '{token_cleaned}' found in ignore list, removing")
+                continue
+
+            # Check if token contains common bad word patterns
+            bad_patterns = ['moviez', 'flix', 'shetty', 'backup', 'files', 'adda', 'print']
+            contains_bad_pattern = any(bad in token_lower for bad in bad_patterns)
+            if contains_bad_pattern:
+                logger.info(f"❌ Token '{token_cleaned}' contains bad pattern, removing")
                 continue
 
             # Check if token is a year (stop processing after year)
@@ -191,13 +201,22 @@ class MovieProcessor:
                 logger.info(f"📊 Found file size '{token_cleaned}', stopping processing")
                 break
 
+            # Check for technical terms
+            tech_terms = ['ds4k', '10bit', 'hevc', 'x264', 'x265', 'aac', 'ac3', 'dts', 'webrip', 'web-dl']
+            if token_lower in tech_terms:
+                logger.info(f"🔧 Found technical term '{token_cleaned}', stopping processing")
+                break
+
             # Token passed all checks, add to clean list
-            # Allow single character tokens for cases like "Gen V" where V is important
-            if len(token_cleaned) >= 1:  # Allow single character meaningful tokens
+            if len(token_cleaned) >= 2:  # Require at least 2 characters for meaningful tokens
                 clean_tokens.append(token_cleaned)
                 logger.info(f"✅ Token '{token_cleaned}' added to clean list")
+            elif len(token_cleaned) == 1 and token_cleaned.isalpha():
+                # Allow single letter only if it's alphabetic (like "V" in "Gen V")
+                clean_tokens.append(token_cleaned)
+                logger.info(f"✅ Single letter token '{token_cleaned}' added to clean list")
             else:
-                logger.info(f"❌ Token '{token_cleaned}' empty, skipping")
+                logger.info(f"❌ Token '{token_cleaned}' too short or invalid, skipping")
 
         # Step 4: Join clean tokens
         if clean_tokens:
