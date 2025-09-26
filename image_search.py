@@ -392,32 +392,10 @@ class TMDBPosterFetcher:
             # Calculate original aspect ratio
             original_ratio = original_width / original_height
 
-            # Calculate new dimensions to fit within target while maintaining aspect ratio
-            if original_ratio > target_ratio:
-                # Image is wider - fit by width
-                new_width = target_width
-                new_height = int(target_width / original_ratio)
-            else:
-                # Image is taller - fit by height
-                new_height = target_height
-                new_width = int(target_height * original_ratio)
+            # Resize image to exactly fill target dimensions (this will stretch the image)
+            final_image = image.resize((target_width, target_height), Image.Resampling.LANCZOS)
 
-            logger.info(f"📏 Fitted dimensions: {new_width}x{new_height}")
-
-            # Resize image to fitted dimensions
-            resized_image = image.resize((new_width, new_height), Image.Resampling.LANCZOS)
-
-            # Create a black background canvas with target dimensions
-            final_image = Image.new('RGB', (target_width, target_height), (0, 0, 0))
-
-            # Calculate position to center the resized image
-            paste_x = (target_width - new_width) // 2
-            paste_y = (target_height - new_height) // 2
-
-            # Paste the resized image onto the center of the black canvas
-            final_image.paste(resized_image, (paste_x, paste_y))
-
-            logger.info(f"📏 Final poster size: {target_width}x{target_height} with image centered")
+            logger.info(f"📏 Final poster size: {target_width}x{target_height} (stretched to fill)")
 
             # Save processed image
             output = io.BytesIO()
