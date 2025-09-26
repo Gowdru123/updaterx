@@ -372,7 +372,7 @@ class TMDBPosterFetcher:
             return None
 
     async def process_and_resize_poster(self, image_data: bytes) -> Optional[bytes]:
-        """Process and resize poster image to 1280x720 by cropping to fill"""
+        """Process and resize poster image to fit within 1280x720 while maintaining aspect ratio"""
         try:
             # Open and validate image
             image = Image.open(io.BytesIO(image_data))
@@ -392,27 +392,32 @@ class TMDBPosterFetcher:
             # Calculate original aspect ratio
             original_ratio = original_width / original_height
 
+            # Calculate new dimensions to fit within target while maintaining aspect ratio
             if original_ratio > target_ratio:
-                # Image is wider than target ratio - crop width
-                new_height = original_height
-                new_width = int(original_height * target_ratio)
-                crop_x = (original_width - new_width) // 2
-                crop_y = 0
+                # Image is wider - fit by width
+                new_width = target_width
+                new_height = int(target_width / original_ratio)
             else:
-                # Image is taller than target ratio - crop height
-                new_width = original_width
-                new_height = int(original_width / target_ratio)
-                crop_x = 0
-                crop_y = (original_height - new_height) // 2
+                # Image is taller - fit by height
+                new_height = target_height
+                new_width = int(target_height * original_ratio)
 
-            # Crop the image to the target aspect ratio
-            cropped_image = image.crop((crop_x, crop_y, crop_x + new_width, crop_y + new_height))
-            logger.info(f"🔲 Cropped to: {new_width}x{new_height}")
+            logger.info(f"📏 Fitted dimensions: {new_width}x{new_height}")
 
-            # Resize to target dimensions
-            final_image = cropped_image.resize((target_width, target_height), Image.Resampling.LANCZOS)
+            # Resize image to fitted dimensions
+            resized_image = image.resize((new_width, new_height), Image.Resampling.LANCZOS)
 
-            logger.info(f"📏 Final poster size: {target_width}x{target_height}")
+            # Create a black background canvas with target dimensions
+            final_image = Image.new('RGB', (target_width, target_height), (0, 0, 0))
+
+            # Calculate position to center the resized image
+            paste_x = (target_width - new_width) // 2
+            paste_y = (target_height - new_height) // 2
+
+            # Paste the resized image onto the center of the black canvas
+            final_image.paste(resized_image, (paste_x, paste_y))
+
+            logger.info(f"📏 Final poster size: {target_width}x{target_height} with image centered")
 
             # Save processed image
             output = io.BytesIO()
