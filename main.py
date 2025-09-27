@@ -119,9 +119,113 @@ class MovieProcessor:
         IGNORE_WORDS_LOWER = {w.lower() for w in IGNORE_WORDS}
         return " ".join(word for word in text.split() if word.lower() not in IGNORE_WORDS_LOWER)
 
-    def extract_clean_movie_name(self, filename):
-        """Enhanced movie name extraction with proper tokenization and live logging"""
-        logger.info(f"🔍 Starting movie name extraction for: {filename}")
+    def extract_clean_movie_name_with_year_cutoff(self, filename):
+        """Extract movie name stopping at year (ignores everything after year)"""
+        logger.info(f"🔍 Starting year-cutoff movie name extraction for: {filename}")
+
+        # Step 1: Remove file extension first
+        name_without_ext = re.sub(r'\.[^.]+$', '', filename)
+        logger.info(f"📝 After removing extension: {name_without_ext}")
+
+        # Step 2: Find year in the filename
+        year_match = YEAR_PATTERN.search(name_without_ext)
+        if not year_match:
+            logger.info(f"📅 No year found, falling back to standard extraction")
+            return self.extract_clean_movie_name_standard(filename)
+
+        year_position = year_match.start()
+        name_before_year = name_without_ext[:year_position].strip()
+        logger.info(f"📅 Found year '{year_match.group()}' at position {year_position}")
+        logger.info(f"🔪 Text before year: '{name_before_year}'")
+
+        if not name_before_year:
+            logger.warning(f"⚠️ No text before year, falling back to standard extraction")
+            return self.extract_clean_movie_name_standard(filename)
+
+        # Step 3: Split text before year into tokens
+        tokens = re.split(r'[\s\-_\.~]+', name_before_year)
+        tokens = [token for token in tokens if token]  # Remove empty tokens
+        logger.info(f"🔤 Tokens before year: {tokens}")
+
+        # Step 4: Clean tokens (remove channel names and bad words)
+        clean_tokens = []
+        ignore_words_lower = {word.lower() for word in IGNORE_WORDS}
+        
+        # Channel name patterns to ignore
+        channel_patterns = [
+            r'^@.*',  # Any token starting with @
+            r'.*moviez.*', r'.*flix.*', r'.*cinema.*', r'.*films.*',
+            r'shetty.*', r'.*backup.*', r'.*files.*', r'.*adda.*',
+            r'rm_.*', r'.*_rm', r'jnk.*', r'.*dd.*moviez.*',
+            r'the.*dd.*', r'.*print.*', r'.*theater.*'
+        ]
+
+        for i, token in enumerate(tokens):
+            logger.info(f"🔍 Processing token {i+1}: '{token}'")
+
+            # Remove special characters from token for checking
+            token_cleaned = re.sub(r'[@#~\-_()]+', '', token)
+            token_lower = token_cleaned.lower()
+
+            # Skip empty tokens after cleaning
+            if not token_cleaned:
+                logger.info(f"❌ Token became empty after cleaning, skipping")
+                continue
+
+            # Check if token matches channel name patterns
+            is_channel_name = False
+            for pattern in channel_patterns:
+                if re.match(pattern, token_lower):
+                    logger.info(f"❌ Token '{token}' matches channel pattern '{pattern}', removing")
+                    is_channel_name = True
+                    break
+            
+            if is_channel_name:
+                continue
+
+            # Check exact match with ignore words (case insensitive)
+            if token_lower in ignore_words_lower:
+                logger.info(f"❌ Token '{token_cleaned}' found in ignore list, removing")
+                continue
+
+            # Check if token contains common bad word patterns
+            bad_patterns = ['moviez', 'flix', 'shetty', 'backup', 'files', 'adda', 'print']
+            contains_bad_pattern = any(bad in token_lower for bad in bad_patterns)
+            if contains_bad_pattern:
+                logger.info(f"❌ Token '{token_cleaned}' contains bad pattern, removing")
+                continue
+
+            # Token passed all checks, add to clean list
+            if len(token_cleaned) >= 2:  # Require at least 2 characters for meaningful tokens
+                clean_tokens.append(token_cleaned)
+                logger.info(f"✅ Token '{token_cleaned}' added to clean list")
+            elif len(token_cleaned) == 1 and token_cleaned.isalpha():
+                # Allow single letter only if it's alphabetic (like "V" in "Gen V")
+                clean_tokens.append(token_cleaned)
+                logger.info(f"✅ Single letter token '{token_cleaned}' added to clean list")
+            else:
+                logger.info(f"❌ Token '{token_cleaned}' too short or invalid, skipping")
+
+        # Step 5: Join clean tokens
+        if clean_tokens:
+            movie_name = ' '.join(clean_tokens)
+            logger.info(f"🎬 Joined clean tokens: '{movie_name}'")
+
+            # Final cleanup - normalize spaces
+            movie_name = re.sub(r'\s+', ' ', movie_name).strip()
+
+            # Capitalize properly
+            movie_name = ' '.join(word.capitalize() for word in movie_name.split())
+            logger.info(f"✨ Final movie name (year-cutoff method): '{movie_name}'")
+
+            return movie_name
+        else:
+            logger.warning(f"⚠️ No valid tokens found before year, falling back to standard extraction")
+            return self.extract_clean_movie_name_standard(filename)
+
+    def extract_clean_movie_name_standard(self, filename):
+        """Standard movie name extraction method (original logic)"""
+        logger.info(f"🔍 Starting standard movie name extraction for: {filename}")
 
         # Step 1: Remove file extension first
         name_without_ext = re.sub(r'\.[^.]+$', '', filename)
@@ -243,6 +347,11 @@ class MovieProcessor:
         else:
             logger.warning(f"⚠️ No valid tokens found, returning 'Unknown Movie'")
             return "Unknown Movie"
+
+    def extract_clean_movie_name(self, filename):
+        """Main movie name extraction method - tries year-cutoff first, then standard"""
+        # First try the year-cutoff method
+        return self.extract_clean_movie_name_with_year_cutoff(filename)
 
     def get_qualities(self, text):
         qualities = QUALITY_PATTERN.findall(text)
@@ -705,6 +814,25 @@ async def handle_start_command(event):
     except Exception as e:
         logger.error(f"Error handling start command: {e}")
 
+def is_video_file(self, filename):
+        """Check if file is a video file based on extension"""
+        if not filename:
+            return False
+        
+        video_extensions = [
+            '.mp4', '.mkv', '.avi', '.mov', '.wmv', '.flv', '.webm',
+            '.m4v', '.3gp', '.f4v', '.asf', '.rm', '.rmvb', '.vob',
+            '.ogv', '.drc', '.mng', '.qt', '.yuv', '.m2v', '.m4p',
+            '.m4r', '.mpg', '.mp2', '.mpeg', '.mpe', '.mpv', '.m2p',
+            '.svi', '.3g2', '.mxf', '.roq', '.nsv'
+        ]
+        
+        file_ext = '.' + filename.lower().split('.')[-1] if '.' in filename else ''
+        is_video = file_ext in video_extensions
+        
+        logger.info(f"🎬 File '{filename}' extension '{file_ext}' - Video: {is_video}")
+        return is_video
+
 @client.on(events.NewMessage(chats=DB_CHANNEL_ID))
 async def handle_new_file(event):
     """Handle new files uploaded to DB channel"""
@@ -721,6 +849,11 @@ async def handle_new_file(event):
         logger.info(f"📁 Processing file: {filename}")
         if caption_text:
             logger.info(f"📝 Caption text: {caption_text[:100]}...")
+
+        # Check if it's a video file - now accepts all video types
+        if not processor.is_video_file(filename):
+            logger.info(f"🚫 File '{filename}' is not a video file, skipping")
+            return
 
         # Extract movie information using the improved method
         logger.info(f"🔄 Starting media info extraction...")
