@@ -127,6 +127,11 @@ class MovieProcessor:
         name_without_ext = re.sub(r'\.[^.]+$', '', filename)
         logger.info(f"📝 After removing extension: {name_without_ext}")
 
+        # Step 1.5: Remove channel names in brackets/parentheses at the beginning
+        name_without_ext = re.sub(r'^\[[@]?[^\]]*\]\s*', '', name_without_ext)  # Remove [ChannelName] or [@ChannelName]
+        name_without_ext = re.sub(r'^\([@]?[^\)]*\)\s*', '', name_without_ext)  # Remove (ChannelName) or (@ChannelName)
+        logger.info(f"📝 After removing channel brackets: {name_without_ext}")
+
         # Step 2: Find year in the filename
         year_match = YEAR_PATTERN.search(name_without_ext)
         if not year_match:
@@ -154,10 +159,14 @@ class MovieProcessor:
         # Channel name patterns to ignore
         channel_patterns = [
             r'^@.*',  # Any token starting with @
+            r'.*@.*',  # Any token containing @
+            r'.*hub.*', r'.*official.*', r'.*_official.*',  # Channel/group names
             r'.*moviez.*', r'.*flix.*', r'.*cinema.*', r'.*films.*',
             r'shetty.*', r'.*backup.*', r'.*files.*', r'.*adda.*',
             r'rm_.*', r'.*_rm', r'jnk.*', r'.*dd.*moviez.*',
-            r'the.*dd.*', r'.*print.*', r'.*theater.*'
+            r'the.*dd.*', r'.*print.*', r'.*theater.*',
+            r'^\[.*\]$',  # Any token that is completely enclosed in square brackets
+            r'.*hub\d+.*', r'.*4u.*'  # Specific patterns like FilmyHub4u
         ]
 
         for i, token in enumerate(tokens):
@@ -230,6 +239,11 @@ class MovieProcessor:
         # Step 1: Remove file extension first
         name_without_ext = re.sub(r'\.[^.]+$', '', filename)
         logger.info(f"📝 After removing extension: {name_without_ext}")
+
+        # Step 1.5: Remove channel names in brackets/parentheses at the beginning
+        name_without_ext = re.sub(r'^\[[@]?[^\]]*\]\s*', '', name_without_ext)  # Remove [ChannelName] or [@ChannelName]
+        name_without_ext = re.sub(r'^\([@]?[^\)]*\)\s*', '', name_without_ext)  # Remove (ChannelName) or (@ChannelName)
+        logger.info(f"📝 After removing channel brackets: {name_without_ext}")
 
         # Step 2: Split into tokens using multiple delimiters
         tokens = re.split(r'[\s\-_\.~]+', name_without_ext)
