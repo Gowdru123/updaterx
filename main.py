@@ -723,23 +723,44 @@ class MovieProcessor:
 processor = MovieProcessor()
 
 async def cleanup_old_files():
-    """Delete movie files and posts older than 24 hours"""
+    """Delete movie files and posts older than 24 hours (real time, not bot uptime)"""
     try:
-        logger.info("🧹 Starting cleanup of files older than 24 hours")
-        cutoff_time = datetime.now() - timedelta(hours=24)
+        logger.info("🧹 Starting cleanup of files older than 24 hours (real time)")
+        current_time = datetime.now()
+        cutoff_time = current_time - timedelta(hours=24)
+        logger.info(f"🕒 Current time: {current_time}")
+        logger.info(f"⏰ Cutoff time: {cutoff_time}")
 
         movies_to_delete = []
         for movie_name, movie_data in processor.movie_data.items():
-            # Check if any file is older than 24 hours
-            should_delete = False
+            # Check if ALL files are older than 24 hours (real time)
+            should_delete = True
+            oldest_file_time = None
+            newest_file_time = None
+            
             for file_info in movie_data['files']:
-                file_timestamp = datetime.fromisoformat(file_info['timestamp'])
-                if file_timestamp < cutoff_time:
-                    should_delete = True
-                    break
-
-            if should_delete:
+                try:
+                    file_timestamp = datetime.fromisoformat(file_info['timestamp'])
+                    if oldest_file_time is None or file_timestamp < oldest_file_time:
+                        oldest_file_time = file_timestamp
+                    if newest_file_time is None or file_timestamp > newest_file_time:
+                        newest_file_time = file_timestamp
+                    
+                    # If ANY file is newer than cutoff, keep the movie
+                    if file_timestamp >= cutoff_time:
+                        should_delete = False
+                        break
+                except (ValueError, KeyError) as e:
+                    logger.warning(f"⚠️ Invalid timestamp for file in {movie_name}: {e}")
+                    continue
+            
+            if should_delete and oldest_file_time:
+                age_hours = (current_time - oldest_file_time).total_seconds() / 3600
+                logger.info(f"🗑️ Movie '{movie_name}' marked for deletion - oldest file is {age_hours:.1f} hours old")
                 movies_to_delete.append(movie_name)
+            elif newest_file_time:
+                age_hours = (current_time - newest_file_time).total_seconds() / 3600
+                logger.info(f"✅ Movie '{movie_name}' kept - newest file is {age_hours:.1f} hours old")
 
         # Delete old movies
         for movie_name in movies_to_delete:
@@ -779,8 +800,13 @@ async def cleanup_old_files():
         logger.error(f"Error during cleanup: {e}")
 
 def schedule_cleanup():
-    """Schedule periodic cleanup every hour"""
+    """Schedule periodic cleanup every hour (persistent across restarts)"""
     loop = asyncio.get_event_loop()
+    
+    # Run cleanup immediately on startup to catch files that expired while bot was offline
+    loop.create_task(cleanup_old_files())
+    
+    # Schedule next cleanup in 1 hour
     loop.call_later(3600, lambda: asyncio.create_task(cleanup_old_files()))
     loop.call_later(3600, schedule_cleanup)  # Schedule next cleanup
 
@@ -1130,9 +1156,10 @@ async def main():
         # Load existing data
         await load_existing_data()
 
-        # Start cleanup scheduler
+        # Start cleanup scheduler (runs immediately to catch expired files from when bot was offline)
         schedule_cleanup()
-        logger.info("🧹 Cleanup scheduler started - files will be auto-deleted after 24 hours")
+        logger.info("🧹 Cleanup scheduler started - files will be auto-deleted after 24 hours (real time)")
+        logger.info("🚀 Running immediate cleanup to handle files that may have expired while bot was offline")
 
         # Keep the bot running
         await client.run_until_disconnected()
