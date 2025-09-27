@@ -47,31 +47,3 @@ class Config:
 {episodes}
 
 📁 ᴛᴏᴛᴀʟ ꜰɪʟᴇꜱ : <b>{total_files}</b>"""
-class Config:
-    # Message templates for formatting
-    MOVIE_TEMPLATE = """🎬 <b>{title}</b>
-
-📁 <b>ᴛᴏᴛᴀʟ ғɪʟᴇs:</b> {total_files}
-🎯 <b>ᴀᴠᴀɪʟᴀʙʟᴇ ǫᴜᴀʟɪᴛʏ:</b> {quality}
-🌍 <b>ʟᴀɴɢᴜᴀɢᴇ:</b> {language}
-📅 <b>ʏᴇᴀʀ:</b> {year}
-📊 <b>ғɪʟᴇ sɪᴢᴇs:</b> {file_sizes}
-
-📥 <b>ᴅᴏᴡɴʟᴏᴀᴅ ʜᴇʀᴇ:</b> @{bot_username}"""
-
-    SERIES_TEMPLATE = """📺 <b>{title}</b>
-
-📁 <b>ᴛᴏᴛᴀʟ ғɪʟᴇs:</b> {total_files}
-🎯 <b>ᴀᴠᴀɪʟᴀʙʟᴇ ǫᴜᴀʟɪᴛʏ:</b> {quality}
-🌍 <b>ʟᴀɴɢᴜᴀɢᴇ:</b> {language}
-📅 <b>ʏᴇᴀʀ:</b> {year}
-📊 <b>ғɪʟᴇ sɪᴢᴇs:</b> {file_sizes}
-
-📺 <b>ᴇᴘɪsᴏᴅᴇs:</b>
-{episodes}
-
-📥 <b>ᴅᴏᴡɴʟᴏᴀᴅ ʜᴇʀᴇ:</b> @{bot_username}"""
-
-    # Bot settings
-    UPDATE_DELAY = 5  # seconds to wait before updating posts
-    CLEANUP_HOURS = 24  # hours after which to delete old files

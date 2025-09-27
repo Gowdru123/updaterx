@@ -587,8 +587,7 @@ class MovieProcessor:
                 year=year_str,
                 file_sizes=file_sizes_str,
                 episodes=episodes_str,
-                total_files=file_count,
-                bot_username=BOT_USERNAME
+                total_files=file_count
             )
         else:
             # Use movie template
@@ -598,8 +597,7 @@ class MovieProcessor:
                 language=language_str,
                 year=year_str,
                 file_sizes=file_sizes_str,
-                total_files=file_count,
-                bot_username=BOT_USERNAME
+                total_files=file_count
             )
 
         return message
