@@ -3,12 +3,21 @@ import re
 import os
 from collections import defaultdict
 from telethon import TelegramClient, events
-from replit import db
 import logging
 from datetime import datetime, timedelta
 from config import Config
 import time
 from image_search import image_search
+
+# Try to import replit db, fallback to dict if not available
+try:
+    from replit import db
+    IS_REPLIT = True
+except (ImportError, AttributeError):
+    # Fallback for non-Replit environments
+    db = {}
+    IS_REPLIT = False
+    print("Running outside Replit environment - using in-memory storage")
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -639,7 +648,10 @@ async def cleanup_old_files():
                 # Delete from database
                 db_key = f"movie_{movie_name}"
                 if db_key in db:
-                    del db[db_key]
+                    if IS_REPLIT:
+                        del db[db_key]
+                    else:
+                        db.pop(db_key, None)
                     logger.info(f"🗑️ Deleted from database: {movie_name}")
 
                 # Delete from memory
@@ -788,7 +800,11 @@ async def handle_new_file(event):
                     'tag': processor.movie_data[movie_name]['tag'],
                     'episodes_by_season': {k: list(v) for k, v in processor.movie_data[movie_name]['episodes_by_season'].items()}
                 }
-                db[f"movie_{movie_name}"] = movie_data_for_db
+                if IS_REPLIT:
+                    db[f"movie_{movie_name}"] = movie_data_for_db
+                else:
+                    # In non-Replit environments, just store in memory
+                    db[f"movie_{movie_name}"] = movie_data_for_db
                 logger.info(f"✅ Successfully saved to database: movie_{movie_name}")
             except Exception as e:
                 logger.error(f"❌ Error saving to database: {e}")
@@ -852,7 +868,10 @@ async def update_movie_post(movie_name):
                         'tag': processor.movie_data[movie_name]['tag'],
                         'episodes_by_season': {k: list(v) for k, v in processor.movie_data[movie_name]['episodes_by_season'].items()}
                     }
-                    db[f"movie_{movie_name}"] = movie_data_for_db
+                    if IS_REPLIT:
+                        db[f"movie_{movie_name}"] = movie_data_for_db
+                    else:
+                        db[f"movie_{movie_name}"] = movie_data_for_db
                 except Exception as e:
                     logger.error(f"Error updating database: {e}")
         else:
@@ -945,7 +964,12 @@ async def update_movie_post(movie_name):
 async def load_existing_data():
     """Load existing movie data from database"""
     try:
-        for key in db.keys():
+        if IS_REPLIT:
+            keys = db.keys()
+        else:
+            keys = list(db.keys())
+            
+        for key in keys:
             if key.startswith('movie_'):
                 movie_name = key.replace('movie_', '', 1)
                 data = db[key]

@@ -5,7 +5,16 @@ import threading
 import logging
 from datetime import datetime
 import os
-from main import client, processor, BOT_USERNAME
+
+# Import with fallback handling
+try:
+    from main import client, processor, BOT_USERNAME
+except ImportError as e:
+    print(f"Import error: {e}")
+    # Create fallbacks if main import fails
+    client = None
+    processor = None
+    BOT_USERNAME = "Movie_Bot"
 
 app = Flask(__name__)
 logging.basicConfig(level=logging.INFO)
