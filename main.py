@@ -858,7 +858,8 @@ async def handle_start_command(event):
             logger.info(f"Sent movie name for copying: {movie_name}")
     except Exception as e:
         logger.error(f"Error handling start command: {e}")
-        @client.on(events.NewMessage(chats=DB_CHANNEL_ID))
+
+@client.on(events.NewMessage(chats=DB_CHANNEL_ID))
 async def handle_new_file(event):
     """Handle new files uploaded to DB channel"""
     try:
