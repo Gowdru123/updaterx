@@ -625,6 +625,25 @@ class MovieProcessor:
         clean_name = re.sub(r'\s+', '-', clean_name.strip())
         return f"https://t.me/{BOT_USERNAME}?start=getfile-{clean_name}"
 
+    def is_video_file(self, filename):
+        """Check if file is a video file based on extension"""
+        if not filename:
+            return False
+        
+        video_extensions = [
+            '.mp4', '.mkv', '.avi', '.mov', '.wmv', '.flv', '.webm',
+            '.m4v', '.3gp', '.f4v', '.asf', '.rm', '.rmvb', '.vob',
+            '.ogv', '.drc', '.mng', '.qt', '.yuv', '.m2v', '.m4p',
+            '.m4r', '.mpg', '.mp2', '.mpeg', '.mpe', '.mpv', '.m2p',
+            '.svi', '.3g2', '.mxf', '.roq', '.nsv'
+        ]
+        
+        file_ext = '.' + filename.lower().split('.')[-1] if '.' in filename else ''
+        is_video = file_ext in video_extensions
+        
+        logger.info(f"🎬 File '{filename}' extension '{file_ext}' - Video: {is_video}")
+        return is_video
+
     def format_movie_message(self, movie_name, data):
         """Format the movie information message using configurable templates"""
         from config import Config
@@ -839,27 +858,7 @@ async def handle_start_command(event):
             logger.info(f"Sent movie name for copying: {movie_name}")
     except Exception as e:
         logger.error(f"Error handling start command: {e}")
-
-def is_video_file(self, filename):
-        """Check if file is a video file based on extension"""
-        if not filename:
-            return False
-        
-        video_extensions = [
-            '.mp4', '.mkv', '.avi', '.mov', '.wmv', '.flv', '.webm',
-            '.m4v', '.3gp', '.f4v', '.asf', '.rm', '.rmvb', '.vob',
-            '.ogv', '.drc', '.mng', '.qt', '.yuv', '.m2v', '.m4p',
-            '.m4r', '.mpg', '.mp2', '.mpeg', '.mpe', '.mpv', '.m2p',
-            '.svi', '.3g2', '.mxf', '.roq', '.nsv'
-        ]
-        
-        file_ext = '.' + filename.lower().split('.')[-1] if '.' in filename else ''
-        is_video = file_ext in video_extensions
-        
-        logger.info(f"🎬 File '{filename}' extension '{file_ext}' - Video: {is_video}")
-        return is_video
-
-@client.on(events.NewMessage(chats=DB_CHANNEL_ID))
+        @client.on(events.NewMessage(chats=DB_CHANNEL_ID))
 async def handle_new_file(event):
     """Handle new files uploaded to DB channel"""
     try:
@@ -869,7 +868,13 @@ async def handle_new_file(event):
             logger.info(f"📄 Message has no document, skipping")
             return
 
-        filename = event.message.document.attributes[0].file_name if event.message.document.attributes else "Unknown"
+        # Extract filename from document attributes safely
+        filename = "Unknown"
+        if event.message.document.attributes:
+            for attr in event.message.document.attributes:
+                if hasattr(attr, 'file_name') and attr.file_name:
+                    filename = attr.file_name
+                    break
         file_size_bytes = event.message.document.size
         caption_text = event.message.text or ""
         logger.info(f"📁 Processing file: {filename}")
