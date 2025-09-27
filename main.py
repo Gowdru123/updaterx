@@ -61,7 +61,7 @@ EP_ONLY_RANGE = re.compile(r'\b(?:EP|Episode)0*(\d{1,3})\s*-\s*0*(\d{1,3})\b',re
 IGNORE_WORDS = {
     "rarbg", "dub", "sub", "sample", "mkv", "aac", "combined",
     "action", "adventure", "animation", "biography", "comedy", "crime",
-    "documentary", "drama", "family", "fantasy", "film-noir", "history",
+    "documentary", "drama", "family", "film-noir", "history",
     "horror", "music", "musical", "mystery", "romance", "sci-fi", "sport",
     "thriller", "war", "western", "hdcam", "hdtc", "camrip", "ts", "tc",
     "telesync", "dvdscr", "dvdrip", "predvd", "webrip", "web-dl", "tvrip",
@@ -155,7 +155,7 @@ class MovieProcessor:
         # Step 4: Clean tokens (remove channel names and bad words)
         clean_tokens = []
         ignore_words_lower = {word.lower() for word in IGNORE_WORDS}
-        
+
         # Channel name patterns to ignore
         channel_patterns = [
             r'^@.*',  # Any token starting with @
@@ -188,7 +188,7 @@ class MovieProcessor:
                     logger.info(f"❌ Token '{token}' matches channel pattern '{pattern}', removing")
                     is_channel_name = True
                     break
-            
+
             if is_channel_name:
                 continue
 
@@ -208,10 +208,14 @@ class MovieProcessor:
             if len(token_cleaned) >= 2:  # Require at least 2 characters for meaningful tokens
                 clean_tokens.append(token_cleaned)
                 logger.info(f"✅ Token '{token_cleaned}' added to clean list")
-            elif len(token_cleaned) == 1 and token_cleaned.isalpha():
-                # Allow single letter only if it's alphabetic (like "V" in "Gen V")
+            elif len(token_cleaned) == 1 and (token_cleaned.isalpha() or token_cleaned.isdigit()):
+                # Allow single letter (like "V" in "Gen V") or single digit (like "2" in "Dhadak 2")
                 clean_tokens.append(token_cleaned)
-                logger.info(f"✅ Single letter token '{token_cleaned}' added to clean list")
+                logger.info(f"✅ Single character token '{token_cleaned}' added to clean list")
+            elif len(token_cleaned) <= 3 and token_cleaned.isdigit() and int(token_cleaned) <= 99:
+                # Allow small numbers that are likely sequel numbers (like "2", "10", etc.)
+                clean_tokens.append(token_cleaned)
+                logger.info(f"✅ Sequel number token '{token_cleaned}' added to clean list")
             else:
                 logger.info(f"❌ Token '{token_cleaned}' too short or invalid, skipping")
 
@@ -253,7 +257,7 @@ class MovieProcessor:
         # Step 3: Enhanced filtering - remove channel names and bad words
         clean_tokens = []
         ignore_words_lower = {word.lower() for word in IGNORE_WORDS}
-        
+
         # Add more channel name patterns to ignore
         channel_patterns = [
             r'^@.*',  # Any token starting with @
@@ -282,7 +286,7 @@ class MovieProcessor:
                     logger.info(f"❌ Token '{token}' matches channel pattern '{pattern}', removing")
                     is_channel_name = True
                     break
-            
+
             if is_channel_name:
                 continue
 
@@ -338,10 +342,14 @@ class MovieProcessor:
             if len(token_cleaned) >= 2:  # Require at least 2 characters for meaningful tokens
                 clean_tokens.append(token_cleaned)
                 logger.info(f"✅ Token '{token_cleaned}' added to clean list")
-            elif len(token_cleaned) == 1 and token_cleaned.isalpha():
-                # Allow single letter only if it's alphabetic (like "V" in "Gen V")
+            elif len(token_cleaned) == 1 and (token_cleaned.isalpha() or token_cleaned.isdigit()):
+                # Allow single letter (like "V" in "Gen V") or single digit (like "2" in "Dhadak 2")
                 clean_tokens.append(token_cleaned)
-                logger.info(f"✅ Single letter token '{token_cleaned}' added to clean list")
+                logger.info(f"✅ Single character token '{token_cleaned}' added to clean list")
+            elif len(token_cleaned) <= 3 and token_cleaned.isdigit() and int(token_cleaned) <= 99:
+                # Allow small numbers that are likely sequel numbers (like "2", "10", etc.)
+                clean_tokens.append(token_cleaned)
+                logger.info(f"✅ Sequel number token '{token_cleaned}' added to clean list")
             else:
                 logger.info(f"❌ Token '{token_cleaned}' too short or invalid, skipping")
 
@@ -643,7 +651,7 @@ class MovieProcessor:
         """Check if file is a video file based on extension"""
         if not filename:
             return False
-        
+
         video_extensions = [
             '.mp4', '.mkv', '.avi', '.mov', '.wmv', '.flv', '.webm',
             '.m4v', '.3gp', '.f4v', '.asf', '.rm', '.rmvb', '.vob',
@@ -651,10 +659,10 @@ class MovieProcessor:
             '.m4r', '.mpg', '.mp2', '.mpeg', '.mpe', '.mpv', '.m2p',
             '.svi', '.3g2', '.mxf', '.roq', '.nsv'
         ]
-        
+
         file_ext = '.' + filename.lower().split('.')[-1] if '.' in filename else ''
         is_video = file_ext in video_extensions
-        
+
         logger.info(f"🎬 File '{filename}' extension '{file_ext}' - Video: {is_video}")
         return is_video
 
@@ -770,7 +778,7 @@ async def cleanup_old_files():
             should_delete = True
             oldest_file_time = None
             newest_file_time = None
-            
+
             for file_info in movie_data['files']:
                 try:
                     file_timestamp = datetime.fromisoformat(file_info['timestamp'])
@@ -778,7 +786,7 @@ async def cleanup_old_files():
                         oldest_file_time = file_timestamp
                     if newest_file_time is None or file_timestamp > newest_file_time:
                         newest_file_time = file_timestamp
-                    
+
                     # If ANY file is newer than cutoff, keep the movie
                     if file_timestamp >= cutoff_time:
                         should_delete = False
@@ -786,7 +794,7 @@ async def cleanup_old_files():
                 except (ValueError, KeyError) as e:
                     logger.warning(f"⚠️ Invalid timestamp for file in {movie_name}: {e}")
                     continue
-            
+
             if should_delete and oldest_file_time:
                 age_hours = (current_time - oldest_file_time).total_seconds() / 3600
                 logger.info(f"🗑️ Movie '{movie_name}' marked for deletion - oldest file is {age_hours:.1f} hours old")
@@ -835,10 +843,10 @@ async def cleanup_old_files():
 def schedule_cleanup():
     """Schedule periodic cleanup every hour (persistent across restarts)"""
     loop = asyncio.get_event_loop()
-    
+
     # Run cleanup immediately on startup to catch files that expired while bot was offline
     loop.create_task(cleanup_old_files())
-    
+
     # Schedule next cleanup in 1 hour
     loop.call_later(3600, lambda: asyncio.create_task(cleanup_old_files()))
     loop.call_later(3600, schedule_cleanup)  # Schedule next cleanup
@@ -1009,10 +1017,10 @@ async def update_movie_post(movie_name):
 
         # Generate direct download link for text format
         search_link = processor.generate_search_link(movie_name)
-        
+
         # Add download link to message text
         message_text += f"\n\n📥 **ᴅᴏᴡɴʟᴏᴀᴅ ʜᴇʀᴇ:** {search_link}"
-        
+
         buttons = None
 
         if movie_data['message_id']:
@@ -1072,7 +1080,7 @@ async def update_movie_post(movie_name):
 
                     # Determine if it's a series or movie
                     is_series = movie_data['tag'] == '#SERIES'
-                    
+
                     logger.info(f"🔍 TMDB search for {'TV series' if is_series else 'movie'}: {movie_name} ({year if year else 'No year'})")
 
                     # Use TMDB API to search for poster
@@ -1147,7 +1155,7 @@ async def load_existing_data():
             keys = db.keys()
         else:
             keys = list(db.keys())
-            
+
         for key in keys:
             if key.startswith('movie_'):
                 movie_name = key.replace('movie_', '', 1)
