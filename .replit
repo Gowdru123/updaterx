@@ -8,7 +8,7 @@ channel = "stable-25_05"
 packages = ["freetype", "lcms2", "libimagequant", "libjpeg", "libtiff", "libwebp", "libxcrypt", "openjpeg", "openssl", "tcl", "tk", "u-root-cmds", "zlib"]
 
 [workflows]
-runButton = "Project"
+runButton = "Web App"
 
 [[workflows.workflow]]
 name = "Project"
@@ -29,6 +29,15 @@ args = "python main.py"
 
 [workflows.workflow.metadata]
 outputType = "console"
+
+[[workflows.workflow]]
+name = "Web App"
+author = 48045220
+mode = "sequential"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "python app.py"
 
 [deployment]
 deploymentTarget = "vm"

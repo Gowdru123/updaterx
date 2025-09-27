@@ -1,0 +1,27 @@
+
+version: '3.8'
+
+services:
+  telegram-bot:
+    build: .
+    ports:
+      - "5000:5000"
+    environment:
+      - API_ID=${API_ID}
+      - API_HASH=${API_HASH}
+      - BOT_TOKEN=${BOT_TOKEN}
+      - DB_CHANNEL_ID=${DB_CHANNEL_ID}
+      - UPDATE_CHANNEL_ID=${UPDATE_CHANNEL_ID}
+      - BOT_USERNAME=${BOT_USERNAME}
+      - PORT=5000
+    volumes:
+      - bot_data:/app/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import requests; requests.get('http://localhost:5000/api/status')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+volumes:
+  bot_data:
