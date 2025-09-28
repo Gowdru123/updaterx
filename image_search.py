@@ -301,17 +301,315 @@ class TMDBPosterFetcher:
             logger.error(f"❌ Error in Google poster search: {e}")
             return None
 
-    async def search_poster(self, title: str, year: Optional[str] = None, is_series: bool = False) -> Optional[bytes]:
-        """Search for poster prioritizing Google IMDB search first, then TMDB as fallback"""
+    async def search_direct_imdb_poster(self, title: str, year: Optional[str] = None, is_series: bool = False) -> Optional[bytes]:
+        """Method 1: Direct IMDB poster search with enhanced extraction"""
         try:
-            # Try Google Images first (prioritizes IMDB results)
-            logger.info(f"🔍 Starting with Google IMDB search for: {title}")
-            poster_data = await self.search_google_poster(title, year, is_series)
+            search_type = "tv" if is_series else "title"
+            search_query = f"{title} {year}" if year else title
+            
+            # Enhanced IMDB search URLs
+            imdb_search_urls = [
+                f"https://www.imdb.com/find?q={urllib.parse.quote(search_query)}&s={search_type}",
+                f"https://www.imdb.com/find?q={urllib.parse.quote(title)}&s=all"
+            ]
+            
+            headers = {
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+                "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
+                "Accept-Language": "en-US,en;q=0.9",
+                "DNT": "1",
+                "Connection": "keep-alive",
+            }
+
+            async with aiohttp.ClientSession() as session:
+                for url in imdb_search_urls:
+                    try:
+                        logger.info(f"🎬 Direct IMDB search: {url}")
+                        
+                        async with session.get(url, headers=headers, timeout=15) as response:
+                            if response.status != 200:
+                                continue
+                                
+                            html = await response.text()
+                            soup = BeautifulSoup(html, 'html.parser')
+                            
+                            # Look for poster images in IMDB results
+                            poster_urls = []
+                            
+                            # Method 1: Find images in search results
+                            for img in soup.find_all('img'):
+                                src = img.get('src') or img.get('data-src')
+                                if src and ('media-amazon.com' in src or 'imdb.com' in src):
+                                    if any(x in src.lower() for x in ['poster', 'primary', 'image']):
+                                        # Convert to high resolution
+                                        if '_V1_' in src:
+                                            high_res_url = re.sub(r'_V1_.*?\.jpg', '_V1_FMjpg_UX1000_.jpg', src)
+                                            poster_urls.append(high_res_url)
+                                        poster_urls.append(src)
+                            
+                            # Method 2: Extract from JSON-LD or script tags
+                            for script in soup.find_all('script', type='application/ld+json'):
+                                try:
+                                    data = json.loads(script.string)
+                                    if 'image' in data and isinstance(data['image'], str):
+                                        poster_urls.append(data['image'])
+                                except:
+                                    pass
+                            
+                            # Try downloading posters
+                            for poster_url in poster_urls[:5]:  # Try top 5
+                                try:
+                                    logger.info(f"📥 Trying IMDB poster: {poster_url[:100]}...")
+                                    
+                                    async with session.get(poster_url, headers=headers, timeout=12) as img_response:
+                                        if img_response.status == 200:
+                                            image_data = await img_response.read()
+                                            
+                                            if len(image_data) > 5000:  # Minimum size check
+                                                processed_image = await self.process_and_resize_poster(image_data)
+                                                if processed_image:
+                                                    logger.info(f"✅ Direct IMDB poster found for: {title}")
+                                                    return processed_image
+                                except Exception as e:
+                                    logger.warning(f"❌ Failed to download IMDB poster: {e}")
+                                    continue
+                                    
+                    except Exception as e:
+                        logger.warning(f"❌ IMDB search failed: {e}")
+                        continue
+                        
+            return None
+            
+        except Exception as e:
+            logger.error(f"❌ Error in direct IMDB search: {e}")
+            return None
+
+    async def search_amazon_prime_poster(self, title: str, year: Optional[str] = None, is_series: bool = False) -> Optional[bytes]:
+        """Method 2: Amazon Prime Video poster search with enhanced extraction"""
+        try:
+            search_query = f"{title} {year}" if year else title
+            
+            # Amazon Prime search URLs
+            amazon_urls = [
+                f"https://www.amazon.com/s?k={urllib.parse.quote(search_query)}&i=prime-instant-video",
+                f"https://www.primevideo.com/search/ref=atv_nb_sr?phrase={urllib.parse.quote(search_query)}",
+            ]
+            
+            headers = {
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+                "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
+                "Accept-Language": "en-US,en;q=0.9",
+                "DNT": "1",
+                "Connection": "keep-alive",
+            }
+
+            async with aiohttp.ClientSession() as session:
+                for url in amazon_urls:
+                    try:
+                        logger.info(f"📺 Amazon Prime search: {url}")
+                        
+                        async with session.get(url, headers=headers, timeout=15) as response:
+                            if response.status != 200:
+                                continue
+                                
+                            html = await response.text()
+                            soup = BeautifulSoup(html, 'html.parser')
+                            
+                            # Look for Amazon poster images
+                            poster_urls = []
+                            
+                            # Method 1: Find images with Amazon media URLs
+                            for img in soup.find_all('img'):
+                                src = img.get('src') or img.get('data-src')
+                                if src and ('amazon.com' in src or 'amazonaws.com' in src):
+                                    if any(x in src.lower() for x in ['poster', 'image', 'cover']):
+                                        # Convert to high resolution
+                                        if 'images-amazon.com' in src or 'm.media-amazon.com' in src:
+                                            high_res_url = re.sub(r'\._.*?_\.', '._SY1000_CR0,0,675,1000_.', src)
+                                            poster_urls.append(high_res_url)
+                                        poster_urls.append(src)
+                            
+                            # Method 2: Look for specific Amazon poster patterns
+                            for img in soup.find_all('img', class_=re.compile(r'.*image.*|.*poster.*')):
+                                src = img.get('src') or img.get('data-src')
+                                if src and 'amazon' in src:
+                                    poster_urls.append(src)
+                            
+                            # Try downloading posters
+                            for poster_url in poster_urls[:5]:  # Try top 5
+                                try:
+                                    logger.info(f"📥 Trying Amazon poster: {poster_url[:100]}...")
+                                    
+                                    async with session.get(poster_url, headers=headers, timeout=12) as img_response:
+                                        if img_response.status == 200:
+                                            image_data = await img_response.read()
+                                            
+                                            if len(image_data) > 5000:  # Minimum size check
+                                                processed_image = await self.process_and_resize_poster(image_data)
+                                                if processed_image:
+                                                    logger.info(f"✅ Amazon Prime poster found for: {title}")
+                                                    return processed_image
+                                except Exception as e:
+                                    logger.warning(f"❌ Failed to download Amazon poster: {e}")
+                                    continue
+                                    
+                    except Exception as e:
+                        logger.warning(f"❌ Amazon search failed: {e}")
+                        continue
+                        
+            return None
+            
+        except Exception as e:
+            logger.error(f"❌ Error in Amazon Prime search: {e}")
+            return None
+
+    async def search_enhanced_google_poster(self, title: str, year: Optional[str] = None, is_series: bool = False) -> Optional[bytes]:
+        """Method 3: Enhanced Google search with multiple strategies"""
+        try:
+            search_type = "tv series" if is_series else "movie"
+            
+            # Multiple enhanced search strategies
+            search_queries = [
+                f'site:imdb.com "{title}" {year} poster' if year else f'site:imdb.com "{title}" poster',
+                f'site:media-amazon.com "{title}" poster',
+                f'"{title}" {year} poster high resolution imdb' if year else f'"{title}" poster high resolution imdb',
+                f'"{title}" {year} {search_type} poster site:imdb.com OR site:amazon.com' if year else f'"{title}" {search_type} poster site:imdb.com OR site:amazon.com',
+                f'"{title}" poster filetype:jpg OR filetype:png imdb'
+            ]
+            
+            headers = {
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+                "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
+                "Accept-Language": "en-US,en;q=0.9",
+                "Referer": "https://www.google.com/",
+                "DNT": "1",
+            }
+            
+            async with aiohttp.ClientSession() as session:
+                for query_idx, search_query in enumerate(search_queries):
+                    try:
+                        logger.info(f"🔍 Enhanced Google search {query_idx + 1}: {search_query}")
+                        
+                        google_url = f"https://www.google.com/search?q={urllib.parse.quote(search_query)}&tbm=isch&hl=en&safe=off"
+                        
+                        async with session.get(google_url, headers=headers, timeout=15) as response:
+                            if response.status != 200:
+                                continue
+                                
+                            html = await response.text()
+                            soup = BeautifulSoup(html, 'html.parser')
+                            
+                            # Enhanced image extraction
+                            poster_urls = []
+                            
+                            # Method 1: Extract from JSON data in scripts
+                            for script in soup.find_all('script'):
+                                if script.string and 'data:image' not in script.string:
+                                    # Look for IMDB and Amazon URLs specifically
+                                    imdb_matches = re.findall(r'\"(https?://[^\"]*(?:imdb\.com|media-amazon\.com)[^\"]*\.(?:jpg|jpeg|png|webp))\"', script.string)
+                                    for match in imdb_matches:
+                                        if len(match) > 50:  # Filter out tiny URLs
+                                            poster_urls.append(match)
+                                    
+                                    # Look for other high-quality image URLs
+                                    other_matches = re.findall(r'\"(https?://[^\"]+\.(?:jpg|jpeg|png|webp))\"', script.string)
+                                    for match in other_matches:
+                                        if len(match) > 80 and any(keyword in match.lower() for keyword in ['poster', 'image', 'large', 'high']):
+                                            poster_urls.append(match)
+                            
+                            # Method 2: Direct img tag extraction with prioritization
+                            for img in soup.find_all('img'):
+                                src = img.get('src') or img.get('data-src')
+                                if src and src.startswith('http') and any(ext in src.lower() for ext in ['.jpg', '.jpeg', '.png', '.webp']):
+                                    if 'data:image' not in src and len(src) > 50:
+                                        # Prioritize IMDB and Amazon
+                                        if any(domain in src.lower() for domain in ['imdb.com', 'media-amazon.com', 'amazon.com']):
+                                            poster_urls.insert(0, src)  # Add to beginning
+                                        else:
+                                            poster_urls.append(src)
+                            
+                            # Remove duplicates while preserving order
+                            seen_urls = set()
+                            unique_poster_urls = []
+                            for url in poster_urls:
+                                if url not in seen_urls:
+                                    seen_urls.add(url)
+                                    unique_poster_urls.append(url)
+                            
+                            # Try downloading posters (prioritize IMDB/Amazon)
+                            for i, poster_url in enumerate(unique_poster_urls[:10]):  # Try top 10
+                                try:
+                                    url_type = "Priority" if any(domain in poster_url.lower() for domain in ['imdb.com', 'media-amazon.com', 'amazon.com']) else "Regular"
+                                    logger.info(f"📥 Trying {url_type} poster {i+1}: {poster_url[:120]}...")
+                                    
+                                    async with session.get(poster_url, headers=headers, timeout=12) as img_response:
+                                        if img_response.status == 200:
+                                            image_data = await img_response.read()
+                                            
+                                            if len(image_data) > 5000:  # Minimum size check
+                                                # Validate image
+                                                try:
+                                                    test_image = Image.open(io.BytesIO(image_data))
+                                                    width, height = test_image.size
+                                                    
+                                                    # Skip very small or very wide/tall images
+                                                    if width >= 200 and height >= 200 and width/height <= 3 and height/width <= 3:
+                                                        processed_image = await self.process_and_resize_poster(image_data)
+                                                        if processed_image:
+                                                            logger.info(f"✅ Enhanced Google poster found for: {title}")
+                                                            return processed_image
+                                                except Exception:
+                                                    continue
+                                        
+                                except Exception as e:
+                                    logger.warning(f"❌ Failed to download enhanced Google poster: {e}")
+                                    continue
+                                    
+                    except Exception as e:
+                        logger.warning(f"❌ Enhanced Google search failed: {e}")
+                        continue
+                        
+            return None
+            
+        except Exception as e:
+            logger.error(f"❌ Error in enhanced Google search: {e}")
+            return None
+
+    async def search_poster(self, title: str, year: Optional[str] = None, is_series: bool = False) -> Optional[bytes]:
+        """Search for poster using 4 methods first, then TMDB as fallback"""
+        try:
+            logger.info(f"🎬 Starting poster search for: {title} ({year if year else 'No year'})")
+            
+            # Method 1: Direct IMDB poster search
+            logger.info(f"🔍 Method 1: Direct IMDB search for: {title}")
+            poster_data = await self.search_direct_imdb_poster(title, year, is_series)
             if poster_data:
-                logger.info(f"✅ Found poster via Google IMDB search for: {title}")
+                logger.info(f"✅ Found poster via Direct IMDB search for: {title}")
                 return poster_data
 
-            logger.info(f"🔄 Google search failed, trying TMDB for: {title}")
+            # Method 2: Amazon Prime poster search
+            logger.info(f"🔍 Method 2: Amazon Prime search for: {title}")
+            poster_data = await self.search_amazon_prime_poster(title, year, is_series)
+            if poster_data:
+                logger.info(f"✅ Found poster via Amazon Prime search for: {title}")
+                return poster_data
+
+            # Method 3: Enhanced Google search
+            logger.info(f"🔍 Method 3: Enhanced Google search for: {title}")
+            poster_data = await self.search_enhanced_google_poster(title, year, is_series)
+            if poster_data:
+                logger.info(f"✅ Found poster via Enhanced Google search for: {title}")
+                return poster_data
+
+            # Method 4: Original Google IMDB search
+            logger.info(f"🔍 Method 4: Original Google IMDB search for: {title}")
+            poster_data = await self.search_google_poster(title, year, is_series)
+            if poster_data:
+                logger.info(f"✅ Found poster via Original Google search for: {title}")
+                return poster_data
+
+            # Fallback: TMDB API search
+            logger.info(f"🔄 All 4 methods failed, trying TMDB fallback for: {title}")
             
             if is_series:
                 # Try TV series search
