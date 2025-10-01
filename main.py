@@ -400,17 +400,20 @@ class MovieProcessor:
         tokens = re.split(r'[\s\-_\.]+', filename)
         quality_tokens = []
 
-        # Quality indicators to look for (more comprehensive)
+        # Quality indicators to look for (more comprehensive, including patterns for large files)
         quality_patterns = {
             'hdcam': 'HDCAM', 'hdtc': 'HDTC', 'camrip': 'CAMRip', 'cam': 'CAM',
             'ts': 'TS', 'tc': 'TC', 'telesync': 'TeleSync',
             'dvdscr': 'DVDScr', 'dvdrip': 'DVDRip', 'predvd': 'PreDVD',
             'webrip': 'WEBRip', 'web-dl': 'WEB-DL', 'webdl': 'WEBRip', 'web': 'WEB',
             'tvrip': 'TVRip', 'hdtv': 'HDTV', 'bluray': 'BluRay', 'brrip': 'BRRip',
-            'bdrip': 'BDRip', 'hevc': 'HEVC', 'hdrip': 'HDRip',
+            'bdrip': 'BDRip', 'hevc': 'HEVC', 'hdrip': 'HDRip', 'uhdrip': 'UHDRip',
             '360p': '360p', '480p': '480p', '720p': '720p', '1080p': '1080p',
             '2160p': '2160p', '4k': '4K', '1440p': '1440p', '540p': '540p',
-            '240p': '240p', '140p': '140p', 'uhd': 'UHD', 'fhd': 'FHD', 'hd': 'HD'
+            '240p': '240p', '140p': '140p', 'uhd': 'UHD', 'fhd': 'FHD', 'hd': 'HD',
+            'remux': 'REMUX', 'uncut': 'UNCUT', 'extended': 'Extended',
+            'imax': 'IMAX', 'dolby': 'Dolby', 'atmos': 'Atmos', 'hdr': 'HDR',
+            'dolbyvision': 'Dolby Vision', 'dv': 'DV'
         }
 
         for token in tokens:
@@ -445,14 +448,17 @@ class MovieProcessor:
         if size_in_bytes is None:
             return "N/A"
 
+        # Handle very large files (TB and above)
         if size_in_bytes < 1024:
             return f"{size_in_bytes} B"
         elif size_in_bytes < 1024**2:
             return f"{size_in_bytes / 1024:.2f} KB"
         elif size_in_bytes < 1024**3:
             return f"{size_in_bytes / (1024**2):.2f} MB"
-        else:
+        elif size_in_bytes < 1024**4:
             return f"{size_in_bytes / (1024**3):.2f} GB"
+        else:
+            return f"{size_in_bytes / (1024**4):.2f} TB"
 
     def extract_language_from_tokens(self, filename):
         """Extract language using token-based method similar to movie name extraction"""
@@ -650,6 +656,7 @@ class MovieProcessor:
     def is_video_file(self, filename):
         """Check if file is a video file based on extension"""
         if not filename:
+            logger.warning(f"❌ Empty filename provided")
             return False
 
         video_extensions = [
@@ -657,7 +664,7 @@ class MovieProcessor:
             '.m4v', '.3gp', '.f4v', '.asf', '.rm', '.rmvb', '.vob',
             '.ogv', '.drc', '.mng', '.qt', '.yuv', '.m2v', '.m4p',
             '.m4r', '.mpg', '.mp2', '.mpeg', '.mpe', '.mpv', '.m2p',
-            '.svi', '.3g2', '.mxf', '.roq', '.nsv'
+            '.svi', '.3g2', '.mxf', '.roq', '.nsv', '.ts', '.m4a'
         ]
 
         file_ext = '.' + filename.lower().split('.')[-1] if '.' in filename else ''
@@ -865,9 +872,12 @@ def schedule_update(movie_name, delay=5):
 
 @client.on(events.NewMessage(pattern='/start'))
 async def handle_start_command(event):
-    """Handle /start command with getfile parameter"""
+    """Handle /start command with getfile parameter and online status"""
     try:
         command = event.message.text
+        user_name = event.sender.first_name or "User"
+        current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        
         if command and 'getfile-' in command:
             # Extract movie name from command
             movie_param = command.split('getfile-', 1)[1]
@@ -878,6 +888,31 @@ async def handle_start_command(event):
 
             await event.reply(response_message, parse_mode='markdown')
             logger.info(f"Sent movie name for copying: {movie_name}")
+        else:
+            # Regular /start command - show online status
+            online_message = f"""🤖 **Bot Status: ONLINE** ✅
+
+👋 Hello {user_name}! Welcome to the Movie Search Bot!
+
+🟢 **I am currently online and ready to help!**
+⏰ **Current Time:** `{current_time}`
+🎬 **Total Movies Available:** `{len(processor.movie_data)}`
+📁 **Total Files Processed:** `{sum(len(data['files']) for data in processor.movie_data.values())}`
+
+**How to use:**
+📝 Simply send me a movie name to search for available files
+🔍 I'll find all matching movies and TV series
+💾 All files are automatically organized by quality and language
+
+**Example:**
+Send: `Avengers`
+I'll show: All Avengers movies with download links
+
+🚀 **Ready to search? Send me any movie name!**"""
+
+            await event.reply(online_message, parse_mode='markdown')
+            logger.info(f"Sent online status to user: {user_name}")
+            
     except Exception as e:
         logger.error(f"Error handling start command: {e}")
 
@@ -898,11 +933,19 @@ async def handle_new_file(event):
                 if hasattr(attr, 'file_name') and attr.file_name:
                     filename = attr.file_name
                     break
+        
         file_size_bytes = event.message.document.size
         caption_text = event.message.text or ""
+        
+        # Log file details including size
         logger.info(f"📁 Processing file: {filename}")
+        logger.info(f"📊 File size: {processor.format_file_size(file_size_bytes)} ({file_size_bytes} bytes)")
         if caption_text:
             logger.info(f"📝 Caption text: {caption_text[:100]}...")
+
+        # Special handling for very large files (2GB+)
+        if file_size_bytes and file_size_bytes > 2 * 1024**3:  # 2GB
+            logger.info(f"🔥 Large file detected: {processor.format_file_size(file_size_bytes)}")
 
         # Check if it's a video file - now accepts all video types
         if not processor.is_video_file(filename):
@@ -911,7 +954,24 @@ async def handle_new_file(event):
 
         # Extract movie information using the improved method
         logger.info(f"🔄 Starting media info extraction...")
-        media_info = processor.extract_media_info(filename, file_size_bytes, caption_text)
+        
+        # Add retry logic for large files
+        max_retries = 3
+        retry_count = 0
+        media_info = None
+        
+        while retry_count < max_retries:
+            try:
+                media_info = processor.extract_media_info(filename, file_size_bytes, caption_text)
+                break
+            except Exception as e:
+                retry_count += 1
+                logger.warning(f"⚠️ Retry {retry_count}/{max_retries} for media info extraction: {e}")
+                if retry_count >= max_retries:
+                    logger.error(f"❌ Failed to extract media info after {max_retries} retries")
+                    return
+                await asyncio.sleep(1)  # Wait 1 second before retry
+        
         movie_name = media_info['base_name']
         logger.info(f"🎬 Extracted movie name: '{movie_name}'")
         logger.info(f"📊 Media info: Quality={media_info['quality']}, Language={media_info['language']}, Tag={media_info['tag']}, File Size={media_info['file_size']}")
