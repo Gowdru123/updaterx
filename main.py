@@ -654,24 +654,39 @@ class MovieProcessor:
         return f"https://t.me/{BOT_USERNAME}?start=getfile-{clean_name}"
 
     def is_video_file(self, filename):
-        """Check if file is a video file based on extension"""
+        """Check if file is a video file based on extension - enhanced for large files"""
         if not filename:
             logger.warning(f"❌ Empty filename provided")
             return False
 
+        # Comprehensive list of video extensions
         video_extensions = [
             '.mp4', '.mkv', '.avi', '.mov', '.wmv', '.flv', '.webm',
             '.m4v', '.3gp', '.f4v', '.asf', '.rm', '.rmvb', '.vob',
             '.ogv', '.drc', '.mng', '.qt', '.yuv', '.m2v', '.m4p',
             '.m4r', '.mpg', '.mp2', '.mpeg', '.mpe', '.mpv', '.m2p',
-            '.svi', '.3g2', '.mxf', '.roq', '.nsv', '.ts', '.m4a'
+            '.svi', '.3g2', '.mxf', '.roq', '.nsv', '.ts', '.m4a',
+            '.divx', '.xvid', '.hevc', '.h264', '.h265'  # Additional formats
         ]
 
-        file_ext = '.' + filename.lower().split('.')[-1] if '.' in filename else ''
-        is_video = file_ext in video_extensions
+        # Handle filenames with multiple dots or unusual formatting
+        try:
+            file_ext = '.' + filename.lower().split('.')[-1] if '.' in filename else ''
+            is_video = file_ext in video_extensions
 
-        logger.info(f"🎬 File '{filename}' extension '{file_ext}' - Video: {is_video}")
-        return is_video
+            if not is_video:
+                # Check if any video extension exists anywhere in filename (edge case)
+                for ext in video_extensions:
+                    if ext in filename.lower():
+                        logger.info(f"🎬 File '{filename}' contains video extension '{ext}' - Accepting as video")
+                        return True
+
+            logger.info(f"🎬 File '{filename}' extension '{file_ext}' - Video: {is_video}")
+            return is_video
+        except Exception as e:
+            logger.error(f"❌ Error checking video file extension for '{filename}': {e}")
+            # If in doubt, return True to avoid missing files
+            return True
 
     def format_movie_message(self, movie_name, data):
         """Format the movie information message using configurable templates"""
@@ -877,7 +892,7 @@ async def handle_start_command(event):
         command = event.message.text
         user_name = event.sender.first_name or "User"
         current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        
+
         if command and 'getfile-' in command:
             # Extract movie name from command
             movie_param = command.split('getfile-', 1)[1]
@@ -912,31 +927,157 @@ I'll show: All Avengers movies with download links
 
             await event.reply(online_message, parse_mode='markdown')
             logger.info(f"Sent online status to user: {user_name}")
-            
+
     except Exception as e:
         logger.error(f"Error handling start command: {e}")
 
 @client.on(events.NewMessage(chats=DB_CHANNEL_ID))
 async def handle_new_file(event):
-    """Handle new files uploaded to DB channel"""
+    """Handle new files uploaded to DB channel - with enhanced large file support"""
     try:
         logger.info(f"🆕 New message received in DB channel")
 
-        if not event.message.document:
-            logger.info(f"📄 Message has no document, skipping")
+        # Check for any type of media (document, video, photo, etc.)
+        if not event.message.media:
+            logger.info(f"📄 Message has no media, skipping")
             return
 
-        # Extract filename from document attributes safely
+        # Handle different media types
         filename = "Unknown"
-        if event.message.document.attributes:
-            for attr in event.message.document.attributes:
-                if hasattr(attr, 'file_name') and attr.file_name:
-                    filename = attr.file_name
+        file_size_bytes = 0
+
+        # Try to get document first (most common for video files)
+        if event.message.document:
+            if event.message.document.attributes:
+                for attr in event.message.document.attributes:
+                    if hasattr(attr, 'file_name') and attr.file_name:
+                        filename = attr.file_name
+                        break
+            file_size_bytes = event.message.document.size
+            logger.info(f"📁 Found document media type")
+
+        # Try to get video attributes if it's a video message
+        elif event.message.video:
+            if event.message.video.attributes:
+                for attr in event.message.video.attributes:
+                    if hasattr(attr, 'file_name') and attr.file_name:
+                        filename = attr.file_name
+                        break
+            file_size_bytes = event.message.video.size
+            logger.info(f"🎥 Found video media type")
+
+        # Try photo with caption (some channels send large files as photos)
+        elif event.message.photo:
+            # Generate filename from caption or use generic name
+            caption_text = event.message.text or ""
+            if caption_text:
+                # Try to extract filename from caption - look for .mkv, .mp4, etc.
+                # First try to find a line with a file extension
+                caption_lines = caption_text.split('\n')
+                for line in caption_lines:
+                    line_clean = re.sub(r'[*_#]', '', line).strip()
+                    # Check if line contains a video file extension
+                    if any(ext in line_clean.lower() for ext in ['.mkv', '.mp4', '.avi', '.mov', '.webm']):
+                        filename = line_clean
+                        logger.info(f"📸 Extracted filename with extension from caption: {filename}")
+                        break
+
+                # If no filename found with extension, try first line
+                if filename == "Unknown":
+                    first_line = caption_lines[0].strip()
+                    first_line = re.sub(r'[*_#\[\]()]', '', first_line)
+                    if first_line and len(first_line) > 3:
+                        # Check if it already has an extension
+                        if not any(first_line.lower().endswith(ext) for ext in ['.mkv', '.mp4', '.avi', '.mov']):
+                            filename = first_line + ".mp4"
+                        else:
+                            filename = first_line
+                        logger.info(f"📸 Extracted filename from first line: {filename}")
+
+                # ENHANCED: Try to extract file size from caption or filename
+                # Look for patterns like "2GB", "2.5GB", "3GB", "2.5 GB" etc.
+                combined_text = f"{filename} {caption_text}"
+                size_patterns = [
+                    (r'(\d+(?:\.\d+)?)\s*GB', 1024**3, 'GB'),
+                    (r'(\d+(?:\.\d+)?)\s*MB', 1024**2, 'MB'),
+                    (r'(\d+(?:\.\d+)?)\s*TB', 1024**4, 'TB'),
+                ]
+
+                for pattern, multiplier, unit in size_patterns:
+                    size_match = re.search(pattern, combined_text, re.IGNORECASE)
+                    if size_match:
+                        size_value = float(size_match.group(1))
+                        file_size_bytes = int(size_value * multiplier)
+                        logger.info(f"📊 Extracted file size from text: {size_value}{unit} = {file_size_bytes} bytes")
+                        break
+
+            if filename == "Unknown":
+                filename = f"photo_{event.message.id}.mp4"
+                logger.info(f"📸 Generated filename for photo: {filename}")
+
+            # Try to get size from photo attributes if not extracted from caption
+            if file_size_bytes == 0:
+                # For photos, try to get the largest available size
+                if hasattr(event.message.photo, 'sizes') and event.message.photo.sizes:
+                    largest_size = max(event.message.photo.sizes, key=lambda s: getattr(s, 'size', 0) if hasattr(s, 'size') else 0)
+                    file_size_bytes = getattr(largest_size, 'size', 0)
+                else:
+                    file_size_bytes = getattr(event.message.photo, 'size', 0)
+
+                # If still 0, log warning
+                if file_size_bytes == 0:
+                    logger.warning(f"⚠️ Could not extract file size for photo, will retry from text")
+
+            logger.info(f"📸 Found photo media type")
+
+        # Handle case where filename is still "Unknown"
+        if filename == "Unknown":
+            logger.warning(f"⚠️ Could not extract filename from media, trying caption")
+            caption_text = event.message.text or ""
+            if caption_text:
+                # Try to extract from first line of caption
+                caption_lines = caption_text.split('\n')
+                if caption_lines:
+                    first_line = caption_lines[0].strip()
+                    first_line = re.sub(r'[*_#\[\]()]', '', first_line)
+                    if first_line and len(first_line) > 3:
+                        filename = first_line
+                        if not any(filename.lower().endswith(ext) for ext in ['.mp4', '.mkv', '.avi', '.mov']):
+                            filename += '.mp4'
+                        logger.info(f"📝 Extracted filename from caption: {filename}")
+
+            if filename == "Unknown":
+                logger.warning(f"⚠️ Still could not extract filename, skipping")
+                return
+
+        # Enhanced file size extraction fallback - try multiple patterns
+        if file_size_bytes == 0:
+            caption_text = event.message.text or ""
+            combined_text = f"{filename} {caption_text}"
+
+            # Try multiple size patterns for better detection
+            # Pattern matches: 2GB, 2.5GB, 3.2 GB, etc.
+            size_patterns = [
+                (r'(\d+(?:\.\d+)?)\s*GB', 1024**3, 'GB'),
+                (r'(\d+(?:\.\d+)?)\s*MB', 1024**2, 'MB'),
+                (r'(\d+(?:\.\d+)?)\s*TB', 1024**4, 'TB'),
+            ]
+
+            for pattern, multiplier, unit in size_patterns:
+                size_match = re.search(pattern, combined_text, re.IGNORECASE)
+                if size_match:
+                    # Extract the numeric value (handles both "2" and "2.5")
+                    size_value = float(size_match.group(1))
+                    file_size_bytes = int(size_value * multiplier)
+                    logger.info(f"📊 Extracted file size from text: {size_value}{unit} = {file_size_bytes} bytes ({processor.format_file_size(file_size_bytes)})")
                     break
-        
-        file_size_bytes = event.message.document.size
+
+            if file_size_bytes == 0:
+                logger.warning(f"⚠️ Could not extract file size from text: '{combined_text[:100]}'")
+                logger.warning(f"⚠️ File will be processed with size showing as 'N/A'")
+
         caption_text = event.message.text or ""
-        
+
         # Log file details including size
         logger.info(f"📁 Processing file: {filename}")
         logger.info(f"📊 File size: {processor.format_file_size(file_size_bytes)} ({file_size_bytes} bytes)")
@@ -944,8 +1085,9 @@ async def handle_new_file(event):
             logger.info(f"📝 Caption text: {caption_text[:100]}...")
 
         # Special handling for very large files (2GB+)
-        if file_size_bytes and file_size_bytes > 2 * 1024**3:  # 2GB
-            logger.info(f"🔥 Large file detected: {processor.format_file_size(file_size_bytes)}")
+        is_large_file = file_size_bytes and file_size_bytes > 2 * 1024**3  # 2GB
+        if is_large_file:
+            logger.info(f"🔥 LARGE FILE DETECTED: {processor.format_file_size(file_size_bytes)} - Using extended processing")
 
         # Check if it's a video file - now accepts all video types
         if not processor.is_video_file(filename):
@@ -954,24 +1096,27 @@ async def handle_new_file(event):
 
         # Extract movie information using the improved method
         logger.info(f"🔄 Starting media info extraction...")
-        
-        # Add retry logic for large files
-        max_retries = 3
+
+        # Enhanced retry logic with longer delays for large files
+        max_retries = 5 if is_large_file else 3
+        retry_delay = 3 if is_large_file else 1
         retry_count = 0
         media_info = None
-        
+
         while retry_count < max_retries:
             try:
                 media_info = processor.extract_media_info(filename, file_size_bytes, caption_text)
+                logger.info(f"✅ Successfully extracted media info on attempt {retry_count + 1}")
                 break
             except Exception as e:
                 retry_count += 1
                 logger.warning(f"⚠️ Retry {retry_count}/{max_retries} for media info extraction: {e}")
                 if retry_count >= max_retries:
-                    logger.error(f"❌ Failed to extract media info after {max_retries} retries")
+                    logger.error(f"❌ CRITICAL: Failed to extract media info after {max_retries} retries for file: {filename}")
+                    logger.error(f"❌ File size: {processor.format_file_size(file_size_bytes)}, File ID: {event.message.document.id}")
                     return
-                await asyncio.sleep(1)  # Wait 1 second before retry
-        
+                await asyncio.sleep(retry_delay)  # Wait before retry
+
         movie_name = media_info['base_name']
         logger.info(f"🎬 Extracted movie name: '{movie_name}'")
         logger.info(f"📊 Media info: Quality={media_info['quality']}, Language={media_info['language']}, Tag={media_info['tag']}, File Size={media_info['file_size']}")
@@ -983,87 +1128,119 @@ async def handle_new_file(event):
         # Use async lock for thread safety
         lock = locks[movie_name]
         logger.info(f"🔒 Acquiring lock for movie: {movie_name}")
-        async with lock:
-            logger.info(f"✅ Lock acquired for movie: {movie_name}")
 
-            # Create unique identifier using filename + file size for better duplicate detection
-            file_identifier = f"{filename}_{file_size_bytes}"
-            existing_identifiers = [f"{f['filename']}_{f.get('file_size_bytes', 0)}" for f in processor.movie_data[movie_name]['files']]
-            if file_identifier in existing_identifiers:
-                logger.info(f"⚠️ File with same name and size already exists: {filename}")
-                return
+        # Extended timeout for large files
+        lock_timeout = 30 if is_large_file else 10
 
-            # Also check by file_id to prevent exact duplicates
-            existing_file_ids = [f['file_id'] for f in processor.movie_data[movie_name]['files']]
-            if event.message.document.id in existing_file_ids:
-                logger.info(f"⚠️ File with same file_id already exists: {event.message.document.id}")
-                return
+        try:
+            async with asyncio.timeout(lock_timeout):
+                async with lock:
+                    logger.info(f"✅ Lock acquired for movie: {movie_name}")
 
-            logger.info(f"📝 Creating file data entry for: {filename}")
-            # Create file data
-            file_data = {
-                'filename': filename,
-                'processed': media_info['processed'],
-                'message_id': event.message.id,
-                'file_id': event.message.document.id,
-                'file_size_bytes': file_size_bytes,
-                'timestamp': datetime.now().isoformat(),
-                'quality': media_info['quality'],
-                'language': media_info['language'],
-                'year': media_info['year'],
-                'season': media_info['season'],
-                'episode': media_info['episode'],
-                'file_size': media_info['file_size']
-            }
+                    # Create unique identifier using filename + file size for better duplicate detection
+                    file_identifier = f"{filename}_{file_size_bytes}"
+                    existing_identifiers = [f"{f['filename']}_{f.get('file_size_bytes', 0)}" for f in processor.movie_data[movie_name]['files']]
+                    if file_identifier in existing_identifiers:
+                        logger.warning(f"⚠️ Duplicate file detected (same name and size): {filename} - SKIPPING")
+                        return
 
-            # Update movie data
-            processor.movie_data[movie_name]['files'].append(file_data)
-            logger.info(f"📂 Added file to movie data. Total files for '{movie_name}': {len(processor.movie_data[movie_name]['files'])}")
+                    # Safely extract file_id based on media type
+                    file_id = None
+                    if event.message.document:
+                        file_id = event.message.document.id
+                    elif event.message.video:
+                        file_id = event.message.video.id
+                    elif event.message.photo:
+                        file_id = event.message.photo.id
 
-            if media_info['quality'] != "N/A":
-                processor.movie_data[movie_name]['qualities'].update(q.strip() for q in media_info['quality'].split(","))
-                logger.info(f"🎯 Updated qualities for '{movie_name}': {list(processor.movie_data[movie_name]['qualities'])}")
-            if media_info['language'] != "N/A":
-                processor.movie_data[movie_name]['languages'].update(l.strip() for l in media_info['language'].split(","))
-                logger.info(f"🌍 Updated languages for '{movie_name}': {list(processor.movie_data[movie_name]['languages'])}")
+                    # Also check by file_id to prevent exact duplicates (only if file_id exists)
+                    if file_id:
+                        existing_file_ids = [f.get('file_id') for f in processor.movie_data[movie_name]['files']]
+                        if file_id in existing_file_ids:
+                            logger.warning(f"⚠️ Duplicate file detected (same file_id): {file_id} - SKIPPING")
+                            return
 
-            processor.movie_data[movie_name]['tag'] = media_info['tag']
-            logger.info(f"🏷️ Set tag for '{movie_name}': {media_info['tag']}")
+                    logger.info(f"📝 Creating file data entry for: {filename}")
+                    # Create file data
+                    file_data = {
+                        'filename': filename,
+                        'processed': media_info['processed'],
+                        'message_id': event.message.id,
+                        'file_id': file_id,
+                        'file_size_bytes': file_size_bytes,
+                        'timestamp': datetime.now().isoformat(),
+                        'quality': media_info['quality'],
+                        'language': media_info['language'],
+                        'year': media_info['year'],
+                        'season': media_info['season'],
+                        'episode': media_info['episode'],
+                        'file_size': media_info['file_size']
+                    }
 
-            # Handle episodes for series
-            if media_info['season'] and media_info['episode']:
-                processor.movie_data[movie_name]['episodes_by_season'][media_info['season']].add(media_info['episode'])
-                logger.info(f"📺 Added episode S{media_info['season']}E{media_info['episode']} for '{movie_name}'")
+                    # Update movie data
+                    processor.movie_data[movie_name]['files'].append(file_data)
+                    logger.info(f"📂 Added file to movie data. Total files for '{movie_name}': {len(processor.movie_data[movie_name]['files'])}")
 
-            # Store in database for persistence - convert to serializable format
-            try:
-                logger.info(f"💾 Saving movie data to database for: {movie_name}")
-                movie_data_for_db = {
-                    'files': processor.movie_data[movie_name]['files'],
-                    'qualities': list(processor.movie_data[movie_name]['qualities']),
-                    'languages': list(processor.movie_data[movie_name]['languages']),
-                    'message_id': processor.movie_data[movie_name]['message_id'],
-                    'is_photo': processor.movie_data[movie_name]['is_photo'],
-                    'tag': processor.movie_data[movie_name]['tag'],
-                    'episodes_by_season': {k: list(v) for k, v in processor.movie_data[movie_name]['episodes_by_season'].items()}
-                }
-                if IS_REPLIT:
-                    db[f"movie_{movie_name}"] = movie_data_for_db
-                else:
-                    # In non-Replit environments, just store in memory
-                    db[f"movie_{movie_name}"] = movie_data_for_db
-                logger.info(f"✅ Successfully saved to database: movie_{movie_name}")
-            except Exception as e:
-                logger.error(f"❌ Error saving to database: {e}")
+                    if media_info['quality'] != "N/A":
+                        processor.movie_data[movie_name]['qualities'].update(q.strip() for q in media_info['quality'].split(","))
+                        logger.info(f"🎯 Updated qualities for '{movie_name}': {list(processor.movie_data[movie_name]['qualities'])}")
+                    if media_info['language'] != "N/A":
+                        processor.movie_data[movie_name]['languages'].update(l.strip() for l in media_info['language'].split(","))
+                        logger.info(f"🌍 Updated languages for '{movie_name}': {list(processor.movie_data[movie_name]['languages'])}")
 
-            logger.info(f"✅ Successfully processed file: {filename} for movie: {movie_name}")
+                    processor.movie_data[movie_name]['tag'] = media_info['tag']
+                    logger.info(f"🏷️ Set tag for '{movie_name}': {media_info['tag']}")
 
-            # Schedule update with delay to batch multiple files
-            logger.info(f"⏰ Scheduling update for '{movie_name}' with 5 second delay")
-            schedule_update(movie_name, delay=5)
+                    # Handle episodes for series
+                    if media_info['season'] and media_info['episode']:
+                        processor.movie_data[movie_name]['episodes_by_season'][media_info['season']].add(media_info['episode'])
+                        logger.info(f"📺 Added episode S{media_info['season']}E{media_info['episode']} for '{movie_name}'")
 
+                    # Store in database for persistence - convert to serializable format
+                    try:
+                        logger.info(f"💾 Saving movie data to database for: {movie_name}")
+                        movie_data_for_db = {
+                            'files': processor.movie_data[movie_name]['files'],
+                            'qualities': list(processor.movie_data[movie_name]['qualities']),
+                            'languages': list(processor.movie_data[movie_name]['languages']),
+                            'message_id': processor.movie_data[movie_name]['message_id'],
+                            'is_photo': processor.movie_data[movie_name]['is_photo'],
+                            'tag': processor.movie_data[movie_name]['tag'],
+                            'episodes_by_season': {k: list(v) for k, v in processor.movie_data[movie_name]['episodes_by_season'].items()}
+                        }
+                        if IS_REPLIT:
+                            db[f"movie_{movie_name}"] = movie_data_for_db
+                        else:
+                            # In non-Replit environments, just store in memory
+                            db[f"movie_{movie_name}"] = movie_data_for_db
+                        logger.info(f"✅ Successfully saved to database: movie_{movie_name}")
+                    except Exception as db_error:
+                        logger.error(f"❌ CRITICAL: Error saving to database: {db_error}")
+                        logger.error(f"❌ File processed but not persisted: {filename}")
+                        # Continue anyway since data is in memory
+
+                    logger.info(f"✅ Successfully processed file: {filename} for movie: {movie_name}")
+                    logger.info(f"📊 Total files for '{movie_name}': {len(processor.movie_data[movie_name]['files'])}")
+
+                    # Schedule update with delay to batch multiple files
+                    logger.info(f"⏰ Scheduling update for '{movie_name}' with 5 second delay")
+                    schedule_update(movie_name, delay=5)
+        except asyncio.TimeoutError:
+            logger.error(f"❌ TIMEOUT: Could not acquire lock for {movie_name} within {lock_timeout} seconds")
+            logger.error(f"❌ File may not be processed: {filename}")
+            return
+
+    except asyncio.TimeoutError:
+        logger.error(f"❌ TIMEOUT ERROR: Processing timeout for file")
+        logger.error(f"❌ Filename: {filename if 'filename' in locals() else 'Unknown'}")
+        logger.error(f"❌ File size: {processor.format_file_size(file_size_bytes) if 'file_size_bytes' in locals() else 'Unknown'}")
     except Exception as e:
-        logger.error(f"Error processing file: {e}")
+        logger.error(f"❌ CRITICAL ERROR processing file: {e}")
+        logger.error(f"❌ Filename: {filename if 'filename' in locals() else 'Unknown'}")
+        logger.error(f"❌ File size: {processor.format_file_size(file_size_bytes) if 'file_size_bytes' in locals() else 'Unknown'}")
+        logger.error(f"❌ Exception type: {type(e).__name__}")
+        import traceback
+        logger.error(f"❌ Traceback: {traceback.format_exc()}")
 
 async def update_movie_post(movie_name):
     """Update or create movie post in update channel (called after delay)"""
