@@ -1429,12 +1429,16 @@ async def graceful_shutdown(signum=None, frame=None):
 async def main():
     """Main function to start the bot"""
     try:
-        # Setup signal handlers for graceful shutdown
+        # Setup signal handlers for graceful shutdown (only in main thread)
         loop = asyncio.get_event_loop()
-        for sig in (signal.SIGTERM, signal.SIGINT):
-            loop.add_signal_handler(
-                sig, lambda s=sig: asyncio.create_task(graceful_shutdown(s, None))
-            )
+        try:
+            for sig in (signal.SIGTERM, signal.SIGINT):
+                loop.add_signal_handler(
+                    sig, lambda s=sig: asyncio.create_task(graceful_shutdown(s, None))
+                )
+        except (ValueError, NotImplementedError, RuntimeError) as e:
+            # Running in thread or on Windows - signal handlers not available
+            logger.info(f"⚠️ Signal handlers not available in this context: {e}")
         
         await client.start(bot_token=BOT_TOKEN)
         logger.info("Bot started successfully!")
