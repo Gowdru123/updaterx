@@ -6,6 +6,9 @@ from datetime import datetime
 import os
 import signal
 import sys
+import time
+import requests
+from threading import Timer
 
 # Import with fallback handling
 try:
@@ -94,11 +97,76 @@ except ValueError:
     logger.warning("⚠️ Cannot register signal handlers (not in main thread)")
 
 # Global variable to track bot status
-bot_status = {"running": False, "last_update": None}
+bot_status = {"running": False, "last_update": None, "last_request_time": time.time()}
+
+# Auto-ping configuration
+PING_INTERVAL = 60  # Check every 60 seconds
+IDLE_THRESHOLD = 50  # Ping if no activity for 50 seconds
+AUTO_PING_ENABLED = True
+
+class AutoPinger:
+    def __init__(self):
+        self.timer = None
+        self.running = False
+        
+    def start(self):
+        """Start auto-ping system"""
+        if not self.running:
+            self.running = True
+            self._schedule_ping()
+            logger.info("🔔 Auto-ping system started - will prevent sleep on inactivity")
+    
+    def stop(self):
+        """Stop auto-ping system"""
+        self.running = False
+        if self.timer:
+            self.timer.cancel()
+    
+    def _schedule_ping(self):
+        """Schedule next ping check"""
+        if self.running:
+            self.timer = Timer(PING_INTERVAL, self._check_and_ping)
+            self.timer.daemon = True
+            self.timer.start()
+    
+    def _check_and_ping(self):
+        """Check if idle and ping if needed"""
+        try:
+            current_time = time.time()
+            time_since_last_request = current_time - bot_status["last_request_time"]
+            
+            # If idle for more than threshold, ping self
+            if time_since_last_request > IDLE_THRESHOLD:
+                logger.info(f"⏰ Idle for {int(time_since_last_request)}s - Auto-pinging to prevent sleep...")
+                try:
+                    port = int(os.environ.get('PORT', 10000))
+                    # Try localhost first, then 0.0.0.0
+                    for host in ['127.0.0.1', '0.0.0.0']:
+                        try:
+                            response = requests.get(f'http://{host}:{port}/health', timeout=5)
+                            if response.status_code == 200:
+                                logger.info(f"✅ Auto-ping successful - keeping alive")
+                                break
+                        except:
+                            continue
+                except Exception as e:
+                    logger.warning(f"⚠️ Auto-ping failed: {e}")
+            else:
+                logger.info(f"✨ Active - last request {int(time_since_last_request)}s ago (no ping needed)")
+                
+        except Exception as e:
+            logger.error(f"❌ Error in auto-ping check: {e}")
+        finally:
+            # Schedule next check
+            self._schedule_ping()
+
+auto_pinger = AutoPinger()
 
 @app.route('/')
 def index():
     """Main dashboard page"""
+    # Update last request time
+    bot_status["last_request_time"] = time.time()
     return render_template('index.html', 
                          bot_username=BOT_USERNAME,
                          status=bot_status)
@@ -107,6 +175,9 @@ def index():
 def health_check():
     """Lightweight health check endpoint for monitoring"""
     from flask import request
+    
+    # Update last request time
+    bot_status["last_request_time"] = time.time()
     
     # Get request information
     user_agent = request.headers.get('User-Agent', 'Unknown')
@@ -124,6 +195,8 @@ def health_check():
         source = "🤖 Bot Monitor"
     elif "curl" in user_agent.lower():
         source = "💻 Manual Check"
+    elif "python-requests" in user_agent.lower():
+        source = "🔔 Auto-Ping"
     
     # Log with both website name and monitoring service
     logger.info(f"🏓 Health ping | Service: {source} | Website: {full_url} | IP: {remote_addr}")
@@ -133,6 +206,7 @@ def health_check():
 @app.route('/api/status')
 def api_status():
     """API endpoint for bot status"""
+    bot_status["last_request_time"] = time.time()
     movie_count = len(processor.movie_data)
     total_files = sum(len(data['files']) for data in processor.movie_data.values())
 
@@ -147,6 +221,7 @@ def api_status():
 @app.route('/api/movies')
 def api_movies():
     """API endpoint for movie list"""
+    bot_status["last_request_time"] = time.time()
     movies = []
     for movie_name, data in processor.movie_data.items():
         movies.append({
@@ -194,6 +269,10 @@ if __name__ == '__main__':
 
         # Start the Telegram bot in background
         start_bot_thread()
+
+        # Start auto-pinger to prevent sleep
+        if AUTO_PING_ENABLED:
+            auto_pinger.start()
 
         # Start Flask web server
         port = int(os.environ.get('PORT', 10000))
