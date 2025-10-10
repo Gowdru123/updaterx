@@ -8,6 +8,8 @@ from datetime import datetime, timedelta
 from config import Config
 import time
 from image_search import image_search
+import signal
+import sys
 
 # Try to import replit db, fallback to dict if not available
 try:
@@ -1412,9 +1414,28 @@ async def load_existing_data():
     except Exception as e:
         logger.error(f"Error loading existing data: {e}")
 
+async def graceful_shutdown(signum=None, frame=None):
+    """Handle graceful shutdown"""
+    try:
+        logger.info("🛑 Shutting down bot gracefully...")
+        if client and client.is_connected():
+            await client.disconnect()
+            logger.info("✅ Bot disconnected successfully")
+    except Exception as e:
+        logger.error(f"❌ Error during shutdown: {e}")
+    finally:
+        sys.exit(0)
+
 async def main():
     """Main function to start the bot"""
     try:
+        # Setup signal handlers for graceful shutdown
+        loop = asyncio.get_event_loop()
+        for sig in (signal.SIGTERM, signal.SIGINT):
+            loop.add_signal_handler(
+                sig, lambda s=sig: asyncio.create_task(graceful_shutdown(s, None))
+            )
+        
         await client.start(bot_token=BOT_TOKEN)
         logger.info("Bot started successfully!")
 
@@ -1428,8 +1449,12 @@ async def main():
 
         # Keep the bot running
         await client.run_until_disconnected()
+    except KeyboardInterrupt:
+        logger.info("🛑 Received keyboard interrupt")
+        await graceful_shutdown()
     except Exception as e:
         logger.error(f"Error starting bot: {e}")
+        await graceful_shutdown()
 
 if __name__ == '__main__':
     asyncio.run(main())
