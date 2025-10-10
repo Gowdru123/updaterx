@@ -85,9 +85,13 @@ def cleanup_pid_file(signum=None, frame=None):
     # Exit gracefully
     sys.exit(0)
 
-# Register cleanup handlers
-signal.signal(signal.SIGTERM, cleanup_pid_file)
-signal.signal(signal.SIGINT, cleanup_pid_file)
+# Register cleanup handlers (only in main thread)
+try:
+    signal.signal(signal.SIGTERM, cleanup_pid_file)
+    signal.signal(signal.SIGINT, cleanup_pid_file)
+except ValueError:
+    # Running in non-main thread or environment that doesn't support signals
+    logger.warning("⚠️ Cannot register signal handlers (not in main thread)")
 
 # Global variable to track bot status
 bot_status = {"running": False, "last_update": None}
@@ -102,6 +106,28 @@ def index():
 @app.route('/health')
 def health_check():
     """Lightweight health check endpoint for monitoring"""
+    from flask import request
+    
+    # Get request information
+    user_agent = request.headers.get('User-Agent', 'Unknown')
+    remote_addr = request.remote_addr
+    full_url = request.url
+    host = request.host
+    
+    # Determine the monitoring service source
+    source = "Unknown Monitor"
+    if "uptimerobot" in user_agent.lower():
+        source = "🟢 UptimeRobot"
+    elif "cron-job.org" in user_agent.lower() or "cron" in user_agent.lower():
+        source = "🔵 Cron-Job.org"
+    elif "bot" in user_agent.lower() or "monitor" in user_agent.lower():
+        source = "🤖 Bot Monitor"
+    elif "curl" in user_agent.lower():
+        source = "💻 Manual Check"
+    
+    # Log with both website name and monitoring service
+    logger.info(f"🏓 Health ping | Service: {source} | Website: {full_url} | IP: {remote_addr}")
+    
     return jsonify({"status": "ok", "timestamp": datetime.now().isoformat()}), 200
 
 @app.route('/api/status')
