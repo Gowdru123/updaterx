@@ -1,10 +1,11 @@
-
 from flask import Flask, render_template, jsonify
 import asyncio
 import threading
 import logging
 from datetime import datetime
 import os
+import signal
+import sys
 
 # Import with fallback handling
 try:
@@ -20,6 +21,74 @@ app = Flask(__name__)
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+# PID file to track running instance
+PID_FILE = 'bot.pid'
+
+def terminate_old_instance():
+    """Terminate any old running instance of the bot"""
+    try:
+        if os.path.exists(PID_FILE):
+            with open(PID_FILE, 'r') as f:
+                old_pid = int(f.read().strip())
+
+            try:
+                # Check if process exists
+                os.kill(old_pid, 0)
+                logger.info(f"🔪 Found old instance with PID {old_pid}, terminating...")
+
+                # Try graceful termination first
+                os.kill(old_pid, signal.SIGTERM)
+                time.sleep(2)
+
+                # Check if still running
+                try:
+                    os.kill(old_pid, 0)
+                    # Still running, force kill
+                    logger.warning(f"⚠️ Old instance didn't stop gracefully, forcing kill...")
+                    os.kill(old_pid, signal.SIGKILL)
+                    time.sleep(1)
+                    logger.info(f"✅ Successfully terminated old instance (PID {old_pid})")
+                except ProcessLookupError:
+                    logger.info(f"✅ Old instance terminated gracefully (PID {old_pid})")
+
+            except ProcessLookupError:
+                logger.info(f"ℹ️ Old PID {old_pid} not running, cleaning up PID file")
+            except PermissionError:
+                logger.warning(f"⚠️ No permission to kill PID {old_pid}")
+
+            # Remove old PID file
+            os.remove(PID_FILE)
+            logger.info(f"🧹 Cleaned up old PID file")
+
+    except Exception as e:
+        logger.error(f"❌ Error terminating old instance: {e}")
+
+def write_pid_file():
+    """Write current process PID to file"""
+    try:
+        current_pid = os.getpid()
+        with open(PID_FILE, 'w') as f:
+            f.write(str(current_pid))
+        logger.info(f"📝 Written PID file: {current_pid}")
+    except Exception as e:
+        logger.error(f"❌ Error writing PID file: {e}")
+
+def cleanup_pid_file(signum=None, frame=None):
+    """Clean up PID file on shutdown"""
+    try:
+        if os.path.exists(PID_FILE):
+            os.remove(PID_FILE)
+            logger.info(f"🧹 Cleaned up PID file on shutdown")
+    except Exception as e:
+        logger.error(f"❌ Error cleaning up PID file: {e}")
+
+    # Exit gracefully
+    sys.exit(0)
+
+# Register cleanup handlers
+signal.signal(signal.SIGTERM, cleanup_pid_file)
+signal.signal(signal.SIGINT, cleanup_pid_file)
+
 # Global variable to track bot status
 bot_status = {"running": False, "last_update": None}
 
@@ -30,12 +99,17 @@ def index():
                          bot_username=BOT_USERNAME,
                          status=bot_status)
 
+@app.route('/health')
+def health_check():
+    """Lightweight health check endpoint for monitoring"""
+    return jsonify({"status": "ok", "timestamp": datetime.now().isoformat()}), 200
+
 @app.route('/api/status')
 def api_status():
     """API endpoint for bot status"""
     movie_count = len(processor.movie_data)
     total_files = sum(len(data['files']) for data in processor.movie_data.values())
-    
+
     return jsonify({
         "bot_running": bot_status["running"],
         "last_update": bot_status["last_update"],
@@ -56,7 +130,7 @@ def api_movies():
             "qualities": list(data.get('qualities', [])),
             "languages": list(data.get('languages', []))
         })
-    
+
     return jsonify(movies)
 
 def run_bot():
@@ -64,14 +138,14 @@ def run_bot():
     try:
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
-        
+
         async def start_bot():
             global bot_status
             from main import main
             bot_status["running"] = True
             bot_status["last_update"] = datetime.now().isoformat()
             await main()
-        
+
         loop.run_until_complete(start_bot())
     except Exception as e:
         logger.error(f"Bot error: {e}")
@@ -84,9 +158,26 @@ def start_bot_thread():
     logger.info("🤖 Telegram bot started in background thread")
 
 if __name__ == '__main__':
-    # Start the Telegram bot in background
-    start_bot_thread()
-    
-    # Start Flask web server
-    port = int(os.environ.get('PORT', 5000))
-    app.run(host='0.0.0.0', port=port, debug=False)
+    try:
+        # Terminate any old running instance
+        logger.info("🔍 Checking for old instances...")
+        terminate_old_instance()
+
+        # Write current PID
+        write_pid_file()
+
+        # Start the Telegram bot in background
+        start_bot_thread()
+
+        # Start Flask web server
+        port = int(os.environ.get('PORT', 10000))
+        app.run(host='0.0.0.0', port=port, debug=False)
+
+    except KeyboardInterrupt:
+        logger.info("🛑 Received keyboard interrupt, shutting down...")
+        cleanup_pid_file()
+    except Exception as e:
+        logger.error(f"❌ Fatal error: {e}")
+        cleanup_pid_file()
+    finally:
+        cleanup_pid_file()
