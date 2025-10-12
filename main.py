@@ -909,23 +909,8 @@ async def handle_start_command(event):
             # Regular /start command - show online status
             online_message = f"""🤖 **Bot Status: ONLINE** ✅
 
-👋 Hello {user_name}! Welcome to the Movie Search Bot!
 
-🟢 **I am currently online and ready to help!**
-⏰ **Current Time:** `{current_time}`
-🎬 **Total Movies Available:** `{len(processor.movie_data)}`
-📁 **Total Files Processed:** `{sum(len(data['files']) for data in processor.movie_data.values())}`
-
-**How to use:**
-📝 Simply send me a movie name to search for available files
-🔍 I'll find all matching movies and TV series
-💾 All files are automatically organized by quality and language
-
-**Example:**
-Send: `Avengers`
-I'll show: All Avengers movies with download links
-
-🚀 **Ready to search? Send me any movie name!**"""
+Search Movie Here https://t.me/Theater_Print_Movies_Search_bot**"""
 
             await event.reply(online_message, parse_mode='markdown')
             logger.info(f"Sent online status to user: {user_name}")
