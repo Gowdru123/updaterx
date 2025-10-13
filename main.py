@@ -910,7 +910,7 @@ async def handle_start_command(event):
             online_message = f"""🤖 **Bot Status: ONLINE** ✅
 
 
-Search Movie Here https://t.me/Theater_Print_Movies_Search_bot**"""
+Search Movie Here https://t.me/Theater_Print_Movies_Search_bot"""
 
             await event.reply(online_message, parse_mode='markdown')
             logger.info(f"Sent online status to user: {user_name}")
