@@ -9,7 +9,7 @@ ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
     PATH="/opt/venv/bin:$PATH"
 
-# Install system build dependencies (includes Rust for aiohttp builds)
+# Install system build dependencies (includes all deps for aiohttp and other packages)
 RUN apt-get update && apt-get install -y --no-install-recommends \
     gcc \
     g++ \
@@ -20,6 +20,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     python3-dev \
     rustc \
     cargo \
+    git \
+    pkg-config \
+    cmake \
     && rm -rf /var/lib/apt/lists/*
 
 # Create a virtual environment
@@ -30,8 +33,8 @@ RUN pip install --upgrade pip setuptools wheel
 
 # Copy requirements and install dependencies
 COPY requirements.txt .
-RUN pip install --no-cache-dir --upgrade pip setuptools wheel \
-    && pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir --upgrade pip setuptools wheel Cython \
+    && pip install --no-cache-dir --verbose -r requirements.txt
 
 # Optional: Install Flask explicitly (if not in requirements.txt)
 RUN pip install flask
