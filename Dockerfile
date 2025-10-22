@@ -1,56 +1,24 @@
-# Use Python 3.11 slim image
-FROM python:3.11-slim
+
+# Use Python 3.12 slim image
+FROM python:3.12-slim
 
 # Set working directory
 WORKDIR /app
 
-# Set environment variables
-ENV PYTHONUNBUFFERED=1 \
-    PYTHONDONTWRITEBYTECODE=1 \
-    PATH="/opt/venv/bin:$PATH"
-
-# Install system build dependencies (includes all deps for aiohttp and other packages)
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    gcc \
-    g++ \
-    libffi-dev \
-    libssl-dev \
-    make \
-    build-essential \
-    python3-dev \
-    rustc \
-    cargo \
-    git \
-    pkg-config \
-    cmake \
-    && rm -rf /var/lib/apt/lists/*
-
-# Create a virtual environment
-RUN python -m venv /opt/venv
-
-# Upgrade pip, setuptools, and wheel
-RUN pip install --upgrade pip setuptools wheel
-
-# Copy requirements and install dependencies
+# Copy requirements first for better caching
 COPY requirements.txt .
-RUN pip install --no-cache-dir --upgrade pip setuptools wheel Cython \
-    && pip install --no-cache-dir --verbose -r requirements.txt
 
-# Optional: Install Flask explicitly (if not in requirements.txt)
-RUN pip install flask
+# Install dependencies
+RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy application code
+# Copy application files
 COPY . .
 
-# Ensure templates directory exists
-RUN mkdir -p templates
-
-# Expose port for web interface
+# Expose port 5000
 EXPOSE 5000
 
-# Health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
-    CMD python -c "import requests; requests.get('http://localhost:5000/api/status')" || exit 1
+# Set environment variables
+ENV PYTHONUNBUFFERED=1
 
-# Run the Flask application
+# Run the Flask app
 CMD ["python", "app.py"]
