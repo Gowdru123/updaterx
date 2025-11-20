@@ -31,7 +31,7 @@ API_HASH = os.getenv('API_HASH')
 BOT_TOKEN = os.getenv('BOT_TOKEN')
 DB_CHANNEL_ID = int(os.getenv('DB_CHANNEL_ID', '0')) if os.getenv('DB_CHANNEL_ID') else None  # Channel where movies are uploaded
 UPDATE_CHANNEL_ID = int(os.getenv('UPDATE_CHANNEL_ID', '0')) if os.getenv('UPDATE_CHANNEL_ID') else None  # Channel for updates
-BOT_USERNAME = os.getenv('BOT_USERNAME', 'Theater_Print_Movies_Search_bot')
+BOT_USERNAME = os.getenv('BOT_USERNAME', 'JNK_Autofilter_Bot')
 
 # Check required environment variables
 if not all([API_ID, API_HASH, BOT_TOKEN, DB_CHANNEL_ID, UPDATE_CHANNEL_ID]):
@@ -1243,7 +1243,7 @@ async def update_movie_post(movie_name):
         search_link = processor.generate_search_link(movie_name)
 
         # Add download link to message text
-        message_text += f"\n\n📥 **ᴅᴏᴡɴʟᴏᴀᴅ ʜᴇʀᴇ:** {search_link}"
+        message_text += f"<b>\n📩 Search Here & Get File : {search_link}<\b>"
 
         buttons = None
 
