@@ -12,7 +12,7 @@ class Config:
     UPDATE_CHANNEL_ID = int(os.getenv('UPDATE_CHANNEL_ID', '-1002871457605'))
     
     # Bot username
-    BOT_USERNAME = os.getenv('BOT_USERNAME', 'Theater_Print_Movies_Search_bot')
+    BOT_USERNAME = os.getenv('BOT_USERNAME', 'JNK_Autofilter_Bot')
     
     # File processing settings
     SUPPORTED_FORMATS = ['.mp4', '.mkv', '.avi', '.mov', '.wmv', '.flv', '.webm']
@@ -20,7 +20,7 @@ class Config:
     # Quality patterns
     QUALITY_PATTERNS = [
         '720p', '1080p', '480p', '360p', '4K', '2K', 'HD', 'CAM', 
-        'HDRip', 'DVDRip', 'BluRay', 'WEBRip', 'HDCAM', 'TC'
+        'HDRip', 'DVDRip', 'BluRay', 'WEBRip', 'HDCAM', 'HDTC', '260p'
     ]
     
     # Language patterns
@@ -30,20 +30,17 @@ class Config:
     ]
     
     # Message Templates
-    MOVIE_TEMPLATE = """✨ ᴛɪᴛʟᴇ : <code>{title}</code>
+    MOVIE_TEMPLATE = """🎬 Title : <code>{title}</code>
 📅 ʏᴇᴀʀ : <b>{year}</b>
-🎧 ᴀᴜᴅɪᴏ : <b>{language}</b>
+🔊 ᴀᴜᴅɪᴏ : <b>{language}</b>
 🎞️ ǫᴜᴀʟɪᴛʏ : <b>{quality}</b>
-📊 ꜰɪʟᴇ ꜱɪᴢᴇ : <b>{file_sizes}</b>
 
 📁 ᴛᴏᴛᴀʟ ꜰɪʟᴇꜱ : <b>{total_files}</b>"""
 
-    SERIES_TEMPLATE = """✨ ᴛɪᴛʟᴇ : <code>{title}</code>
+    SERIES_TEMPLATE = """🎬 ᴛɪᴛʟᴇ : <code>{title}</code>
 📅 ʏᴇᴀʀ : <b>{year}</b>
-🎧 ᴀᴜᴅɪᴏ : <b>{language}</b>
+🔊 ᴀᴜᴅɪᴏ : <b>{language}</b>
 🎞️ ǫᴜᴀʟɪᴛʏ : <b>{quality}</b>
-📊 ꜰɪʟᴇ ꜱɪᴢᴇ : <b>{file_sizes}</b>
-📺 ᴇᴘɪꜱᴏᴅᴇꜱ : 
-{episodes}
+📺 ᴇᴘɪꜱᴏᴅᴇꜱ : <b>{episodes}</b>
 
 📁 ᴛᴏᴛᴀʟ ꜰɪʟᴇꜱ : <b>{total_files}</b>"""
