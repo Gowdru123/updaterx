@@ -1243,7 +1243,7 @@ async def update_movie_post(movie_name):
         search_link = processor.generate_search_link(movie_name)
 
         # Add download link to message text
-        message_text += f"<b>\n📩 Search Here & Get File : {search_link}<\b>"
+        message_text += f"\n\n🔍 Search Here & Get File : {search_link}"
 
         buttons = None
 
