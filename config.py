@@ -30,17 +30,17 @@ class Config:
     ]
     
     # Message Templates
-    MOVIE_TEMPLATE = """🎬 Title : <code>{title}</code>
+    MOVIE_TEMPLATE = """<b>🎬 Title : <code>{title}</code>
 📅 ʏᴇᴀʀ : <b>{year}</b>
 🔊 ᴀᴜᴅɪᴏ : <b>{language}</b>
 📤 ǫᴜᴀʟɪᴛʏ : <b>HD</b>
 
-📁 ᴛᴏᴛᴀʟ ꜰɪʟᴇꜱ : <b>{total_files}</b>"""
+📁 ᴛᴏᴛᴀʟ ꜰɪʟᴇꜱ : <b>{total_files}</b></b>"""
 
-    SERIES_TEMPLATE = """🎬 ᴛɪᴛʟᴇ : <code>{title}</code>
+    SERIES_TEMPLATE = """<b>🎬 ᴛɪᴛʟᴇ : <code>{title}</code>
 📅 ʏᴇᴀʀ : <b>{year}</b>
 🔊 ᴀᴜᴅɪᴏ : <b>{language}</b>
 📤 ǫᴜᴀʟɪᴛʏ : <b>HD</b>
 📺 ᴇᴘɪꜱᴏᴅᴇꜱ : <b>{episodes}</b>
 
-📁 ᴛᴏᴛᴀʟ ꜰɪʟᴇꜱ : <b>{total_files}</b>"""
+📁 ᴛᴏᴛᴀʟ ꜰɪʟᴇꜱ : <b>{total_files}</b></b>"""
